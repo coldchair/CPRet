@@ -8,6 +8,7 @@ from sentence_transformers import SentenceTransformer
 import time
 from flask import Flask, request, render_template, redirect, url_for
 from markupsafe import Markup, escape
+from datetime import datetime
 
 # ===== Multilingual dictionary =====
 I18N = {
@@ -22,6 +23,7 @@ I18N = {
         "untitled"  : "未命名",
         "view_origin": "原站链接",
         "back": "返回搜索",
+        "view_stats": "📊 每日搜索统计",
     },
     "en": {
         "site_name" : "Problem Search",
@@ -34,6 +36,7 @@ I18N = {
         "untitled"  : "Untitled",
         "view_origin": "Original Link",
         "back": "Back to Search",
+        "view_stats": "📊 Daily Search Stats",
     },
 }
 
@@ -47,8 +50,8 @@ def detect_lang():
 
 
 
-
 # ---------------- Configuration ---------------- #
+SEARCH_STATS_PATH = "search_stats.json"
 MODEL_PATH = os.getenv(
     "MODEL_PATH",
     "coldchair16/CPRetriever-Prob"
@@ -93,6 +96,25 @@ def search_once(q: str):
     idx   = sims.argsort()[::-1]
     return idx.tolist(), sims.tolist()
 
+def load_search_stats():
+    """Load daily search statistics from file."""
+    if not os.path.exists(SEARCH_STATS_PATH):
+        return {}
+    with open(SEARCH_STATS_PATH, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+def save_search_stats(stats: dict):
+    """Save search statistics to file."""
+    with open(SEARCH_STATS_PATH, "w", encoding="utf-8") as f:
+        json.dump(stats, f, ensure_ascii=False, indent=2)
+
+def record_search():
+    """Update today's search count and save to file."""
+    stats = load_search_stats()
+    today = datetime.now().strftime("%Y-%m-%d")
+    stats[today] = stats.get(today, 0) + 1
+    save_search_stats(stats)
+
 @app.route("/", methods=["GET"])
 def index():
     lang  = detect_lang()
@@ -104,6 +126,7 @@ def index():
     results, total, elapsed = [], 0, 0.0
 
     if q:
+        record_search()
         tic   = time.perf_counter()
         idx, sims = search_once(q)
         elapsed = (time.perf_counter() - tic) * 1_000 
@@ -160,6 +183,21 @@ def problem(pid: int):
         text_html=text_html,
         query=request.args.get("q", ""),       # Pass original query to return button
         page=request.args.get("page", "1"),
+    )
+
+@app.route("/stats")
+def stats():
+    lang = detect_lang()
+    t    = I18N[lang]
+
+    stats = load_search_stats()
+    stats_data = sorted(stats.items(), key=lambda x: x[0], reverse=True)
+
+    return render_template(
+        "stats.html",
+        lang=lang,
+        t=t,
+        stats=stats_data
     )
 
 # -------------- Local run entry -------------- #

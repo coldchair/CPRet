@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ t.site_name }} - 搜索统计</title>
+</head>
+<body>
+    <h1>{{ t.site_name }} - 搜索统计</h1>
+    <table border="1" cellpadding="5">
+        <tr>
+            <th>日期</th>
+            <th>搜索次数</th>
+        </tr>
+        {% for date, count in stats %}
+        <tr>
+            <td>{{ date }}</td>
+            <td>{{ count }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    <p><a href="{{ url_for('index') }}">{{ t.back }}</a></p>
+</body>
+</html>

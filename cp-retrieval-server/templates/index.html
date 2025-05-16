@@ -13,6 +13,7 @@
     </button>
   </div>
   <button class="btn btn-primary">{{ t.search_btn }}</button>
+  <a class="btn btn-link btn-sm ms-2" href="{{ url_for('stats') }}">{{ t.view_stats }}</a>
 </form>
 
 {% if results %}
@@ -86,7 +87,7 @@
     const lang = "{{ lang }}";
     const template = {
       "zh": "求 1-n 的所有约数的和的和",
-      "en": "Sum of all divisor sums from 1 to n"
+      "en": "Given n, output sum of all divisor sums from 1 to n"
     };
     document.getElementById("query-box").value = template[lang] || "";
   }

@@ -4,6 +4,7 @@ results/
 dataset/
 probs_embs.npy
 probs.jsonl
+search_stats.json
 
 # Python 相关
 __pycache__/

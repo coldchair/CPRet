@@ -15,6 +15,14 @@ We target four core retrieval tasks in the competitive programming domain, enabl
 
 ---
 
+## 🌐 Try Online Demo
+
+We provide an **online demo** of the CPRet retrieval service, available at:
+
+👉 [http://1.94.255.218:5000/](http://1.94.255.218:5000/)
+
+This demo is powered by the same codebase and embedding model as the local deployment instructions below. Feel free to try it out before setting up your own instance!
+
 ## 🧰 Repository Contents
 
 * `cp-retrieval-server/`: Code for running a local retrieval web service.
