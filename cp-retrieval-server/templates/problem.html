@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block content %}
+<a class="btn btn-link mb-3" href="{{ url_for('index', q=query, page=page, lang=lang) }}">
+  ← {{ t.back }}
+</a>
+
+<h2 class="h4">{{ title }}</h2>
+<p class="text-muted">{{ source }}</p>
+
+<div class="my-4">
+  <!-- 题面正文 -->
+  <div class="border rounded p-3 bg-light">
+    {{ text_html }}
+  </div>
+</div>
+
+<a class="btn btn-outline-primary" href="{{ url }}" target="_blank">
+  {{ t.view_origin }} 🔗
+</a>
+{% endblock %}

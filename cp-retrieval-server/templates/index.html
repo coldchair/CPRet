@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="h4 mb-4">{{ t.site_name }}</h1>
+
+<form method="get" action="{{ url_for('index') }}">
+  <input type="hidden" name="lang" value="{{ lang }}">
+  <div class="mb-3">
+    <textarea id="query-box" name="q" class="form-control" rows="4"
+              placeholder="{{ t.placeholder }}">{{ query }}</textarea>
+    <button type="button" class="btn btn-sm btn-outline-secondary mt-2"
+            onclick="fillTemplate()">
+      💡 {{ t.template_btn }}
+    </button>
+  </div>
+  <button class="btn btn-primary">{{ t.search_btn }}</button>
+</form>
+
+{% if results %}
+<hr>
+<p class="text-muted"
+   >{{ t.summary.format(total=total, page=page, max_page=max_page, elapsed=elapsed) | safe }}
+  </p>
+
+<ul class="list-group">
+  {% for r in results %}
+<li class="list-group-item">
+  <div class="d-flex justify-content-between">
+    <div>
+      <span class="badge bg-secondary me-2">#{{ r.rank }}</span>
+      {# 👉 主标题 = 原题链接 #}
+      <a href="{{ r.url }}" target="_blank">{{ r.title }}</a>
+      {# 🔍 小图标 = 站内详情页 #}
+      <a href="{{ url_for('problem', pid=r.pid, lang=lang, q=query, page=page) }}"
+         class="ms-2 text-decoration-none" title="查看题面">
+        📄
+      </a>
+
+      <small class="text-muted ms-2">{{ r.source }}</small>
+    </div>
+    <span class="score-badge text-muted">{{ "%.4f"|format(r.score) }}</span>
+  </div>
+</li>
+{% endfor %}
+
+</ul>
+
+<nav class="mt-4">
+  {% if max_page > 1 %}
+  <ul class="pagination justify-content-center">
+
+    {# ← Prev #}
+    <li class="page-item {% if page==1 %}disabled{% endif %}">
+      <a class="page-link"
+         href="{{ url_for('index', q=query, lang=lang, page=page-1) }}">&laquo; {{ t.prev }}</a>
+    </li>
+
+    {# 中间数字，当前页±2；首尾要保留 #}
+    {% set window = 2 %}
+    {% for p in range(1, max_page+1) %}
+      {% if p==1 or p==max_page or (p>=page-window and p<=page+window) %}
+        <li class="page-item {% if p==page %}active{% endif %}">
+          <a class="page-link"
+             href="{{ url_for('index', q=query, lang=lang, page=p) }}">{{ p }}</a>
+        </li>
+      {% elif p==2 and page-window>3 %}
+        <li class="page-item disabled"><span class="page-link">…</span></li>
+      {% elif p==max_page-1 and page+window<max_page-2 %}
+        <li class="page-item disabled"><span class="page-link">…</span></li>
+      {% endif %}
+    {% endfor %}
+
+    {# Next → #}
+    <li class="page-item {% if page==max_page %}disabled{% endif %}">
+      <a class="page-link"
+         href="{{ url_for('index', q=query, lang=lang, page=page+1) }}">{{ t.next }} &raquo;</a>
+    </li>
+
+  </ul>
+  {% endif %}
+</nav>
+
+{% endif %}
+
+<script>
+  function fillTemplate() {
+    const lang = "{{ lang }}";
+    const template = {
+      "zh": "求 1-n 的所有约数的和的和",
+      "en": "Sum of all divisor sums from 1 to n"
+    };
+    document.getElementById("query-box").value = template[lang] || "";
+  }
+  </script>
+
+{% endblock %}

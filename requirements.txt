@@ -1,0 +1,11 @@
+sentence-transformers==3.4.1
+transformers==4.49.0
+torch==2.5.1
+torchaudio==2.5.1
+torchvision==0.20.1
+pandas
+tensorboard
+datasets
+accelerate
+einops
+Flask
