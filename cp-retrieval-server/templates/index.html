@@ -13,7 +13,7 @@
     </button>
   </div>
   <button class="btn btn-primary">{{ t.search_btn }}</button>
-  <a class="btn btn-link btn-sm ms-2" href="{{ url_for('stats') }}">{{ t.view_stats }}</a>
+  <a class="btn btn-link btn-sm ms-2" href="{{ url_for('stats', lang=lang) }}">{{ t.view_stats }}</a>
 </form>
 
 {% if results %}

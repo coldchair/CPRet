@@ -24,6 +24,8 @@ I18N = {
         "view_origin": "原站链接",
         "back": "返回搜索",
         "view_stats": "📊 每日搜索统计",
+        "date": "日期",
+        "search_count": "搜索次数",
     },
     "en": {
         "site_name" : "Problem Search",
@@ -37,6 +39,8 @@ I18N = {
         "view_origin": "Original Link",
         "back": "Back to Search",
         "view_stats": "📊 Daily Search Stats",
+        "date": "Date",
+        "search_count": "Search Count",
     },
 }
 
@@ -47,7 +51,6 @@ def detect_lang():
         return qlang
     header = request.headers.get("Accept-Language", "")
     return "en" if header.lower().startswith("en") else "zh"
-
 
 
 # ---------------- Configuration ---------------- #
