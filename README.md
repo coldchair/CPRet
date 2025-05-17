@@ -9,9 +9,9 @@
 
 * A large-scale dataset and benchmark for retrieval tasks in coding contests.
 * A dual-stage training pipeline with contrastive pretraining and task-specific fine-tuning.
-* A local retrieval server powered by sentence-transformer-based models.
+* A local retrieval server for **simplified description** and **duplicate problem** search, powered by our trained model **CPRet-Prob** (based on [Salesforce/SFR-Embedding-Code-2B_R](https://huggingface.co/Salesforce/SFR-Embedding-Code-2B_R)).
 
-We target four core retrieval tasks in the competitive programming domain, enabling both practical applications (e.g., search, deduplication) and academic benchmarking.
+We target four retrieval tasks specifically designed for competitive programming, enabling both practical applications (e.g., search, deduplication) and academic benchmarking.
 
 ---
 
@@ -21,7 +21,8 @@ We provide an **online demo** of the CPRet retrieval service, available at:
 
 👉 [http://1.94.255.218:5000/](http://1.94.255.218:5000/)
 
-This demo is powered by the same codebase and embedding model as the local deployment instructions below. Feel free to try it out before setting up your own instance!
+This demo supports both **duplicate problem detection** and **simplified description retrieval**.  
+It runs the same codebase and embedding model as the local deployment (see below), so you can preview its capabilities before setting up your own instance.
 
 ## 🧰 Repository Contents
 
@@ -95,15 +96,15 @@ export HF_ENDPOINT=https://hf-mirror.com
 
    The data is collected up to **May 2025**.
    You can add your own data source and generate embeddings using [`compute_embs.py`](cp-retrieval-server/compute_embs.py).
-   If you have access to a larger or more diverse problem dataset, **we welcome contributions and are happy to update the collection** — feel free to [contact us](231775009@qq.com) or open an issue/pull request.
+   If you have access to a larger or more diverse problem dataset, **we welcome contributions and are happy to update the collection** — feel free to contact us (231775009@qq.com) or open an issue/pull request.
 
 4. **System Requirements:**
 
    This service can be run on **CPU** or **GPU**, depending on your environment.
    We recommend at least **16GB of system memory or GPU VRAM** for smooth operation.
 
-   * On **CPU**: With 8 cores, typical query latency is **10–20 seconds**.
-   * On **GPU**: With an A800, most queries respond in **0.1–1 seconds**.
+   * On **CPU** (8 cores): typical query latency is **10–20 seconds**.
+   * On **GPU** (e.g., A800): typical query latency is **0.1–1 seconds**.
 
 ---
 
@@ -111,16 +112,48 @@ export HF_ENDPOINT=https://hf-mirror.com
 
 > **⚠️ Note**: Recommended GPU memory ≥ **50 GB** to avoid OOM.
 
-### Stage 1: Contrastive Pretraining
+Here's the updated `README.md` section in **English**, incorporating:
+
+* Instructions for Stage 1 training;
+* A clear warning and fix for using `Salesforce/SFR-Embedding-Code-2B_R` with `device_map="auto"`;
+* A link to your patched `modeling_gemma2.py`.
+
+---
+
+## 🔧 Stage 1: Contrastive Pretraining
 
 ```bash
 cd stage1
 torchrun --nproc_per_node=8 train.py
+````
+
+* Change `--nproc_per_node` to match the number of available GPUs.
+* Use `--help` to see all configurable hyperparameters.
+
+### ⚠️ Note on Using `Salesforce/SFR-Embedding-Code-2B_R`
+
+If you are using [`Salesforce/SFR-Embedding-Code-2B_R`](https://huggingface.co/Salesforce/SFR-Embedding-Code-2B_R) as your encoder, make sure to **manually disable `device_map="auto"`** when loading the model.
+
+The original code might look like this:
+
+```python
+self.model = Gemma2Model.from_pretrained(config._name_or_path, trust_remote_code=True, is_causal=False, device_map="auto")
+self.tokenizer = AutoTokenizer.from_pretrained(config._name_or_path, trust_remote_code=True, device_map="auto")
 ```
 
-* Change `--nproc_per_node` to match your available GPUs.
-* Use `--help` to see full hyperparameter options.
+This setting can cause the model to skip training due to automatic device placement.
+**Please change it to:**
 
+```python
+self.model = Gemma2Model.from_pretrained(config._name_or_path, trust_remote_code=True, is_causal=False, device_map=None)
+self.tokenizer = AutoTokenizer.from_pretrained(config._name_or_path, trust_remote_code=True, device_map=None)
+```
+
+Alternatively, you can directly copy the patched file from our repo:
+👉 [modeling\_gemma2.py](https://huggingface.co/coldchair16/CPRetriever-Code/blob/main/modeling_gemma2.py)
+
+
+---
 ### Stage 2: Problem-Level Fine-Tuning
 
 ```bash
