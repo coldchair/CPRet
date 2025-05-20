@@ -1,7 +1,8 @@
 # CPRet: A Dataset, Benchmark, and Model for Retrieval in Competitive Programming
 
-**[Hugging Face Collection](https://huggingface.co/collections/coldchair16/cpret-682451276f05c5988fcbdf34)**
-**[arXiv Paper (coming soon)](#)**
+[![arXiv](https://img.shields.io/badge/arXiv-2505.12925-b31b1b.svg)](https://arxiv.org/abs/2505.12925)
+[![🤗 HF Collection](https://img.shields.io/badge/HuggingFace-CPRet-yellow)](https://huggingface.co/collections/coldchair16/cpret-682451276f05c5988fcbdf34)
+
 
 ## 📌 Overview
 
@@ -170,8 +171,28 @@ torchrun --nproc_per_node=1 train.py
 * `--model_path`: Can be either an HF model repo (e.g. `coldchair16/CPRetriever-Code`) or a local directory supporting SentenceTransformer.
 * `--eval_only True`: Run evaluation without training.
 
----
 
 ## 📫 Citation & License
 
-* Citation information and license will be released along with the paper.
+If you find **CPRet** useful in your research or applications, please consider citing our paper:
+
+```bibtex
+@misc{deng2025cpretdatasetbenchmarkmodel,
+  title     = {CPRet: A Dataset, Benchmark, and Model for Retrieval in Competitive Programming},
+  author    = {Han Deng and Yuan Meng and Shixiang Tang and Wanli Ouyang and Xinzhu Ma},
+  year      = {2025},
+  eprint    = {2505.12925},
+  archivePrefix = {arXiv},
+  primaryClass  = {cs.SE},
+  url       = {https://arxiv.org/abs/2505.12925}
+}
+```
+
+### 📄 License
+
+This work is released for **research and non-commercial use only**.
+
+> **License**: CC BY-NC 4.0 (Attribution-NonCommercial)
+> [📜 View full license text](https://creativecommons.org/licenses/by-nc/4.0/)
+
+
