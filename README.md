@@ -3,6 +3,7 @@
 [![arXiv](https://img.shields.io/badge/arXiv-2505.12925-b31b1b.svg)](https://arxiv.org/abs/2505.12925)
 [![🤗 HF Collection](https://img.shields.io/badge/HuggingFace-CPRet-yellow)](https://huggingface.co/collections/coldchair16/cpret-682451276f05c5988fcbdf34)
 
+Email contact: 2317757009@qq.com
 
 ## 📌 Overview
 
@@ -112,14 +113,6 @@ export HF_ENDPOINT=https://hf-mirror.com
 ## 🏋️‍♀️ Training Instructions
 
 > **⚠️ Note**: Recommended GPU memory ≥ **50 GB** to avoid OOM.
-
-Here's the updated `README.md` section in **English**, incorporating:
-
-* Instructions for Stage 1 training;
-* A clear warning and fix for using `Salesforce/SFR-Embedding-Code-2B_R` with `device_map="auto"`;
-* A link to your patched `modeling_gemma2.py`.
-
----
 
 ## 🔧 Stage 1: Contrastive Pretraining
 
