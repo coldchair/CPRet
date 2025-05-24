@@ -13,7 +13,7 @@ from datetime import datetime
 # ===== Multilingual dictionary =====
 I18N = {
     "zh": {
-        "site_name" : "题目检索",
+        "site_name" : "CPRet：编程竞赛题目检索",
         "placeholder": "输入题目描述或简略题意 …",
         "template_btn": "填入示例查询",
         "search_btn": "搜索",
@@ -28,7 +28,7 @@ I18N = {
         "search_count": "搜索次数",
     },
     "en": {
-        "site_name" : "Problem Search",
+        "site_name" : "CPRet: Competitive Programming Problem Retrieval",
         "placeholder": "Enter problem description or simplified statement…",
         "template_btn": "Insert example query",
         "search_btn": "Search",
