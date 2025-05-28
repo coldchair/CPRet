@@ -24,6 +24,9 @@ We provide an **online demo** of the CPRet retrieval service, available at:
 👉 [http://1.94.255.218:5000/](http://1.94.255.218:5000/)
 
 This demo supports both **duplicate problem detection** and **simplified description retrieval**.  
+
+You can refer to the usage examples of the retrieval platform at: https://github.com/coldchair/CPRet/blob/main/TestCases.md
+
 It runs the same codebase and embedding model as the local deployment (see below), so you can preview its capabilities before setting up your own instance.
 
 ## 🧰 Repository Contents
