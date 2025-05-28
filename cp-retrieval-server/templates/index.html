@@ -7,10 +7,15 @@
   <div class="mb-3">
     <textarea id="query-box" name="q" class="form-control" rows="4"
               placeholder="{{ t.placeholder }}">{{ query }}</textarea>
-    <button type="button" class="btn btn-sm btn-outline-secondary mt-2"
-            onclick="fillTemplate()">
+    <button type="button" class="btn btn-sm btn-outline-secondary me-3" onclick="fillTemplate()">
       💡 {{ t.template_btn }}
     </button>
+    <a href="https://github.com/coldchair/CPRet/blob/main/TestCases.md"
+        target="_blank"
+        class="btn btn-sm btn-link p-0 text-decoration-none"
+        style="line-height: 1.5;">
+      🧪 {{ t.example_report }}
+    </a>
   </div>
   <button class="btn btn-primary">{{ t.search_btn }}</button>
   <a class="btn btn-link btn-sm ms-2" href="{{ url_for('stats', lang=lang) }}">{{ t.view_stats }}</a>

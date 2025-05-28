@@ -26,6 +26,7 @@ I18N = {
         "view_stats": "📊 每日搜索统计",
         "date": "日期",
         "search_count": "搜索次数",
+        "example_report": "使用示例（实测报告）",
     },
     "en": {
         "site_name" : "CPRet: Competitive Programming Problem Retrieval",
@@ -41,6 +42,7 @@ I18N = {
         "view_stats": "📊 Daily Search Stats",
         "date": "Date",
         "search_count": "Search Count",
+        "example_report": "Test Cases (Demo Report)",
     },
 }
 
