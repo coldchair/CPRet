@@ -11,9 +11,14 @@ Email contact: 2317757009@qq.com
 
 * A large-scale dataset and benchmark for retrieval tasks in coding contests.
 * A dual-stage training pipeline with contrastive pretraining and task-specific fine-tuning.
-* A local retrieval server for **simplified description** and **duplicate problem** search, powered by our trained model **CPRet-Prob** (based on [Salesforce/SFR-Embedding-Code-2B_R](https://huggingface.co/Salesforce/SFR-Embedding-Code-2B_R)).
+* A local retrieval server for **simplified description** and **duplicate problem** search, powered by our trained model **[CPRet-Prob](https://huggingface.co/coldchair16/CPRetriever-Prob)** (based on [Salesforce/SFR-Embedding-Code-2B\_R](https://huggingface.co/Salesforce/SFR-Embedding-Code-2B_R)).
 
-We target four retrieval tasks specifically designed for competitive programming, enabling both practical applications (e.g., search, deduplication) and academic benchmarking.
+We define the following **four core retrieval tasks** to support both practical applications and academic benchmarking:
+
+1. **Text-to-Code (T2C):** Retrieve relevant code given a natural language problem description.
+2. **Code-to-Code (C2C):** Retrieve other implementations of the same problem based on a given solution.
+3. **Problem-to-Duplicate (P2D):** Detect duplicate or near-duplicate problems from existing contest archives.
+4. **Simplified-to-Full (S2F):** Retrieve the original full version of a simplified problem.
 
 ---
 
@@ -23,9 +28,13 @@ We provide an **online demo** of the CPRet retrieval service, available at:
 
 👉 [http://1.94.255.218:5000/](http://1.94.255.218:5000/)
 
-This demo supports both **duplicate problem detection** and **simplified description retrieval**.  
+This demo can assist in **duplicate problem detection** by retrieving potentially similar problems, though final identification still requires manual verification.
 
-You can refer to the usage examples of the retrieval platform at: https://github.com/coldchair/CPRet/blob/main/TestCases.md
+It also supports **similar problem retrieval** to help broaden your problem-solving perspective.
+
+You can input either a **full problem description** or a **simplified version**, and the system will return the most relevant existing problems.
+
+You can refer to the usage examples of the retrieval platform at: [https://github.com/coldchair/CPRet/blob/main/TestCases.md](https://github.com/coldchair/CPRet/blob/main/TestCases.md)
 
 It runs the same codebase and embedding model as the local deployment (see below), so you can preview its capabilities before setting up your own instance.
 
