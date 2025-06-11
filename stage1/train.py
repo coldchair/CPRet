@@ -46,12 +46,12 @@ if __name__ == "__main__":
     data = load_dataset('coldchair16/CPRet-data', 'PCPCD')
     traindata, testdata = process_dataset(data, args.max_length)
 
-    if model_name == 'SFR-Embedding-Code-2B_R':
+    if model_name == 'SFR-Embedding-Code-2B_R' or model_name.startswith('Qwen3-Embedding'):
         model_kwargs = {"torch_dtype": torch.bfloat16}
     else:
         model_kwargs = {}
         
-    model = SentenceTransformer(args.model_path, trust_remote_code=True, model_kwargs=model_kwargs)
+    model = SentenceTransformer(args.model_path, trust_remote_code=True, model_kwargs=model_kwargs, device='cpu')
     model.tokenizer.model_max_length = args.max_length
     model.max_seq_length = args.max_length
 
@@ -95,7 +95,7 @@ if __name__ == "__main__":
         num_train_epochs=args.num_train_epochs,
         logging_dir="./logs/" + save_name,
         logging_steps=1,
-        evaluation_strategy="epoch",
+        eval_strategy="epoch",
         # eval_accumulation_steps=5,
         save_strategy="steps",
         save_steps=1,
