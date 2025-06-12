@@ -14,6 +14,7 @@ from datetime import datetime
 I18N = {
     "zh": {
         "site_name" : "CPRet：编程竞赛题目检索",
+        "new_domain_info": "我们的最新域名是 <a href='https://cpret.online' target='_blank' class='alert-link'>cpret.online</a>，欢迎收藏！",
         "placeholder": "输入题目描述或简略题意 …",
         "template_btn": "填入示例查询",
         "search_btn": "搜索",
@@ -30,6 +31,7 @@ I18N = {
     },
     "en": {
         "site_name" : "CPRet: Competitive Programming Problem Retrieval",
+        "new_domain_info": "Our new domain is <a href='https://cpret.online' target='_blank' class='alert-link'>cpret.online</a>. Please bookmark it!",
         "placeholder": "Enter problem description or simplified statement…",
         "template_btn": "Insert example query",
         "search_btn": "Search",

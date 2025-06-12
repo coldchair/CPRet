@@ -26,7 +26,9 @@ We define the following **four core retrieval tasks** to support both practical 
 
 We provide an **online demo** of the CPRet retrieval service, available at:
 
-👉 [http://1.94.255.218:5000/](http://1.94.255.218:5000/)
+👉 [https://www.cpret.online/](https://www.cpret.online/)
+
+The former IP address, http://1.94.255.218:5000/, should be updated to the new domain.
 
 This demo can assist in **duplicate problem detection** by retrieving potentially similar problems, though final identification still requires manual verification.
 

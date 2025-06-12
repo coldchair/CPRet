@@ -2,6 +2,11 @@
 {% block content %}
 <h1 class="h4 mb-4">{{ t.site_name }}</h1>
 
+{# New Domain Announcement #}
+<div class="alert alert-success" role="alert">
+  {{ t.new_domain_info | safe }}
+</div>
+
 <form method="get" action="{{ url_for('index') }}">
   <input type="hidden" name="lang" value="{{ lang }}">
   <div class="mb-3">

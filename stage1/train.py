@@ -97,8 +97,8 @@ if __name__ == "__main__":
         logging_steps=1,
         eval_strategy="epoch",
         # eval_accumulation_steps=5,
-        save_strategy="steps",
-        save_steps=1,
+        save_strategy="epoch",
+        # save_steps=1,
         bf16=True,
         dataloader_num_workers=4,
         dataloader_drop_last=True,
@@ -108,6 +108,7 @@ if __name__ == "__main__":
         weight_decay=0.01,
         max_grad_norm=1.0,
         gradient_accumulation_steps=1,
+        lr_scheduler_type="constant",
     )
 
     trainer = ContrastiveTrainer(
