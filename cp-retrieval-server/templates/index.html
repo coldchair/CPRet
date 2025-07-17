@@ -27,6 +27,23 @@
       🧪 {{ t.example_report }}
     </a>
   </div>
+  <div class="mb-3">
+    <label class="form-label d-block">{{ t.filter_by_oj }}</label>
+    <div class="mb-2">
+        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="selectAllOJs()">{{ t.select_all }}</button>
+        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="deselectAllOJs()">{{ t.deselect_all }}</button>
+    </div>
+    
+    {% for oj_name in available_ojs %}
+    <div class="form-check form-check-inline">
+      <input class="form-check-input oj-checkbox" type="checkbox" name="oj" value="{{ oj_name }}"
+      id="oj-{{ loop.index }}"
+      {% if oj_name in selected_ojs %}checked{% endif %}>
+      <label class="form-check-label" for="oj-{{ loop.index }}">{{ oj_name }}</label>
+    </div>
+    {% endfor %}
+  </div>
+  
   <button class="btn btn-primary">{{ t.search_btn }}</button>
   <a class="btn btn-link btn-sm ms-2" href="{{ url_for('stats', lang=lang) }}">{{ t.view_stats }}</a>
 </form>
@@ -106,11 +123,23 @@
     };
     document.getElementById("query-box").value = template[lang] || "";
   }
-  </script>
+  function selectAllOJs() {
+    const checkboxes = document.querySelectorAll('.oj-checkbox');
+    checkboxes.forEach(checkbox => {
+      checkbox.checked = true;
+    });
+  }
+  function deselectAllOJs() {
+    const checkboxes = document.querySelectorAll('.oj-checkbox');
+    checkboxes.forEach(checkbox => {
+      checkbox.checked = false;
+    });
+  }
+</script>
 
-  <hr class="mt-5">
 <div class="text-center text-muted small">
   <a href="https://github.com/coldchair/CPRet" target="_blank" class="text-decoration-none">
+    
     <svg height="16" width="16" viewBox="0 0 16 16" fill="currentColor"
          xmlns="http://www.w3.org/2000/svg" class="me-1" style="vertical-align: text-bottom;">
       <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 
@@ -127,8 +156,85 @@
         0 .21.15.46.55.38A8.013 8.013 0 0 0 16 
         8c0-4.42-3.58-8-8-8z"/>
     </svg>
+    
     <span>GitHub: <strong>coldchair/CPRet</strong></span>
+    
+    <span id="github-stars-container" class="ms-2"></span>
+      
   </a>
 </div>
+<script>
+  // 等待整个 HTML 文档加载完成后再执行脚本
+  document.addEventListener('DOMContentLoaded', function() {
+  
+      const GITHUB_REPO = 'coldchair/CPRet';
+      const CACHE_DURATION_HOURS = 6; // 缓存 6 小时
+      const CACHE_KEY = 'github_stars_data';
+      const starsContainer = document.getElementById('github-stars-container');
+  
+      if (!starsContainer) {
+          return; // 如果页面上没有占位符，则不执行
+      }
+  
+      // 更新 DOM，显示星星
+      function displayStars(count) {
+          if (count !== null && count !== undefined) {
+              starsContainer.innerHTML = `
+                  <span title="GitHub Stars">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-star-fill" viewBox="0 0 16 16" style="vertical-align: -0.125em;">
+                          <path d="M3.612 15.443c-.386.198-.824-.149-.746-.592l.83-4.73L.173 6.765c-.329-.314-.158-.888.283-.95l4.898-.696L7.538.792c.197-.39.73-.39.927 0l2.184 4.327 4.898.696c.441.062.612.636.282.95l-3.522 3.356.83 4.73c.078.443-.36.79-.746.592L8 13.187l-4.389 2.256z"/>
+                      </svg>
+                      ${count}
+                  </span>
+              `;
+          }
+      }
+      
+      // --- 缓存逻辑 ---
+      const cachedData = localStorage.getItem(CACHE_KEY);
+      if (cachedData) {
+          const { stars, timestamp } = JSON.parse(cachedData);
+          const ageInHours = (Date.now() - timestamp) / (1000 * 60 * 60);
+  
+          if (ageInHours < CACHE_DURATION_HOURS) {
+              console.log('GitHub stars loaded from cache.');
+              displayStars(stars);
+              return; // 缓存有效，直接使用并停止执行
+          }
+      }
+  
+      // --- API 请求逻辑 ---
+      console.log('Fetching fresh GitHub stars...');
+      fetch(`https://api.github.com/repos/${GITHUB_REPO}`)
+          .then(response => {
+              if (!response.ok) {
+                  throw new Error('Network response was not ok');
+              }
+              return response.json();
+          })
+          .then(data => {
+              const stars = data.stargazers_count;
+              displayStars(stars);
+              
+              // 将新数据存入缓存
+              const newData = {
+                  stars: stars,
+                  timestamp: Date.now()
+              };
+              localStorage.setItem(CACHE_KEY, JSON.stringify(newData));
+          })
+          .catch(error => {
+              console.error('Failed to fetch GitHub stars:', error);
+              // 请求失败时，如果缓存中有旧数据，也可以选择显示旧数据
+              if(cachedData) {
+                  const { stars } = JSON.parse(cachedData);
+                  displayStars(stars); // 显示过期的旧数据
+              }
+          });
+  });
+  </script>
+
 
 {% endblock %}
+
+

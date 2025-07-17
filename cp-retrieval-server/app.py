@@ -29,6 +29,9 @@ I18N = {
         "date": "日期",
         "search_count": "搜索次数",
         "example_report": "使用示例（实测报告）",
+        "filter_by_oj": "筛选 OJ",
+        "select_all": "全选",      
+        "deselect_all": "全不选",  
     },
     "en": {
         "site_name" : "CPRet: Competitive Programming Problem Retrieval",
@@ -47,6 +50,9 @@ I18N = {
         "date": "Date",
         "search_count": "Search Count",
         "example_report": "Test Cases (Demo Report)",
+        "filter_by_oj": "Filter by OJ",
+        "select_all": "Select All",      
+        "deselect_all": "Deselect All",  
     },
 }
 
@@ -90,6 +96,9 @@ embs /= np.linalg.norm(embs, axis=1, keepdims=True)
 
 print("Loading problem metadata …")
 probs = [json.loads(line) for line in open(PROB_PATH, "r", encoding="utf‑8")]
+
+# 收集所有可用的 OJ 源，用于前端下拉菜单
+available_ojs = sorted(list(set(p.get("source") for p in probs if p.get("source"))))
 
 assert len(probs) == embs.shape[0], "Mismatch between vector and problem count!"
 print(f"Ready! {len(probs)} problems indexed.\n")
@@ -138,6 +147,11 @@ def index():
     q     = request.args.get("q", "").strip()
     page  = max(int(request.args.get("page", "1")), 1)
 
+    if "oj" in request.args:
+        selected_ojs = request.args.getlist("oj")
+    else:
+        selected_ojs = available_ojs
+
     results, total, elapsed = [], 0, 0.0
 
     if q:
@@ -145,11 +159,20 @@ def index():
         tic   = time.perf_counter()
         idx, sims = search_once(q)
         elapsed = (time.perf_counter() - tic) * 1_000 
-        total   = len(idx)
+
+        # 根据 OJ 筛选结果
+        filtered_idx = []
+        for j in idx:
+            p = probs[j]
+            # 如果选中了特定的 OJ，并且当前问题的 source 不在选中列表中，则跳过
+            if p.get("source") in selected_ojs:
+                filtered_idx.append(j)
+        
+        total   = len(filtered_idx)
 
         results = []
         start, end = (page - 1) * PAGE_SIZE, page * PAGE_SIZE
-        for rank, j in enumerate(idx[start:end], start=start + 1):
+        for rank, j in enumerate(filtered_idx[start:end], start=start + 1):
             p = probs[j]
             results.append({
                 "rank"  : rank,
@@ -172,6 +195,8 @@ def index():
         total=total,
         max_page=max(1, math.ceil(total / PAGE_SIZE)),
         elapsed=elapsed,
+        available_ojs=available_ojs,
+        selected_ojs=selected_ojs,
     )
 
 @app.route("/p/<int:pid>")
@@ -198,6 +223,7 @@ def problem(pid: int):
         text_html=text_html,
         query=request.args.get("q", ""),       # Pass original query to return button
         page=request.args.get("page", "1"),
+        selected_ojs_str=request.args.get("oj", "") # Pass selected_ojs_str for back button
     )
 
 @app.route("/stats")
