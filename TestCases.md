@@ -3,7 +3,7 @@
 
 ## 📌 System Launch Overview
 
-* Our open-source **problem retrieval platform** was launched on **May 21, 2025**: http://1.94.255.218:5000/
+* Our open-source **problem retrieval platform** was launched on **May 21, 2025**: https://cpret.online/ (Before : http://1.94.255.218:5000/)
 * In less than a week, the platform has recorded nearly **2,000 search queries**.
 * The blog post introducing the system on **Codeforces** has received over **250 upvotes** and positive community feedback: https://codeforces.com/blog/entry/143098
 * **Use cases** include:
