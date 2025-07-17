@@ -102,10 +102,7 @@ def main():
 
     model_name = model_path.split('/')[-1]
 
-    if model_name in ['SFR-Embedding-Code-2B_R', 'CPRetriever-Code', 'CPRetriever-Prob']:
-        model_kwargs = {"torch_dtype": torch.bfloat16}
-    else:
-        model_kwargs = {}
+    model_kwargs = {'torch_dtype': torch.bfloat16} # TODO: Make sure your GPU and model support bfloat16
     model = SentenceTransformer(model_path, trust_remote_code=True, model_kwargs=model_kwargs)
 
     model.tokenizer.model_max_length = max_length

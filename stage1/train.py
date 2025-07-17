@@ -46,10 +46,7 @@ if __name__ == "__main__":
     data = load_dataset('coldchair16/CPRet-data', 'PCPCD')
     traindata, testdata = process_dataset(data, args.max_length)
 
-    if model_name == 'SFR-Embedding-Code-2B_R' or model_name.startswith('Qwen3-Embedding'):
-        model_kwargs = {"torch_dtype": torch.bfloat16}
-    else:
-        model_kwargs = {}
+    model_kwargs = {"torch_dtype": torch.bfloat16} # TODO: Make sure your GPU and model support bfloat16
         
     model = SentenceTransformer(args.model_path, trust_remote_code=True, model_kwargs=model_kwargs, device='cpu')
     model.tokenizer.model_max_length = args.max_length

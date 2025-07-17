@@ -2,9 +2,9 @@ logs/
 models/
 results/
 dataset/
-probs_embs.npy
-probs.jsonl
-search_stats.json
+*.npy
+*.jsonl
+*.json
 
 # Python 相关
 __pycache__/

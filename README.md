@@ -5,23 +5,6 @@
 
 Email contact: 2317757009@qq.com
 
-## 📌 Overview
-
-**CPRet** is a comprehensive suite for competitive programming retrieval research, consisting of:
-
-* A large-scale dataset and benchmark for retrieval tasks in coding contests.
-* A dual-stage training pipeline with contrastive pretraining and task-specific fine-tuning.
-* A local retrieval server for **simplified description** and **duplicate problem** search, powered by our trained model **[CPRet-Prob](https://huggingface.co/coldchair16/CPRetriever-Prob)** (based on [Salesforce/SFR-Embedding-Code-2B\_R](https://huggingface.co/Salesforce/SFR-Embedding-Code-2B_R)).
-
-We define the following **four core retrieval tasks** to support both practical applications and academic benchmarking:
-
-1. **Text-to-Code (T2C):** Retrieve relevant code given a natural language problem description.
-2. **Code-to-Code (C2C):** Retrieve other implementations of the same problem based on a given solution.
-3. **Problem-to-Duplicate (P2D):** Detect duplicate or near-duplicate problems from existing contest archives.
-4. **Simplified-to-Full (S2F):** Retrieve the original full version of a simplified problem.
-
----
-
 ## 🌐 Try Online Demo
 
 We provide an **online demo** of the CPRet retrieval service, available at:
@@ -39,6 +22,36 @@ You can input either a **full problem description** or a **simplified version**,
 You can refer to the usage examples of the retrieval platform at: [https://github.com/coldchair/CPRet/blob/main/TestCases.md](https://github.com/coldchair/CPRet/blob/main/TestCases.md)
 
 It runs the same codebase and embedding model as the local deployment (see below), so you can preview its capabilities before setting up your own instance.
+
+## 🚀 News
+
+**July 2025: CPRetriever-Prob-Qwen3-4B Released with Enhanced Retrieval Performance!**
+
+We're excited to announce a major update to the CPRetriever model series! We've trained the new [**CPRetriever-Prob-Qwen3-4B**](https://huggingface.co/coldchair16/CPRetriever-Prob-Qwen3-4B) model based on [**Qwen3-Embedding-4B**](https://huggingface.co/Qwen/Qwen3-Embedding-4B), released in June 2025, and it has achieved **state-of-the-art results** in problem-related retrieval tasks. Concurrently, we've also updated our website's retrieval problem database to the latest July 2025 version.
+
+Here's a comparison of model performance:
+
+| model | type | size | Text-to-Code | Code-to-Code | Problem-to-Duplicate | Simplified-to-Full | Avg |
+| :------------------------ | :--- | :--- | :----------- | :----------- | :------------------- | :----------------- | :----- |
+| CPRetreiver-Code | code | 2B | 70.40 | 70.59 | 38.68 | 81.45 | 65.28 |
+| CPRetreiver-Prob | code | 2B | 56.50 | 70.68 | 60.06 | 90.74 | 69.50 |
+| CPRetriever-Prob-Qwen3-4B | code | 4B | 65.85 | 70.19 | 71.45 | 95.03 | 75.63 |
+
+## 📌 Overview
+
+**CPRet** is a comprehensive suite for competitive programming retrieval research, consisting of:
+
+* A large-scale dataset and benchmark for retrieval tasks in coding contests.
+* A dual-stage training pipeline with contrastive pretraining and task-specific fine-tuning.
+* A local retrieval server for **simplified description** and **duplicate problem** search, powered by our trained model **[CPRet-Prob](https://huggingface.co/coldchair16/CPRetriever-Prob)** (based on [Salesforce/SFR-Embedding-Code-2B\_R](https://huggingface.co/Salesforce/SFR-Embedding-Code-2B_R)).
+
+We define the following **four core retrieval tasks** to support both practical applications and academic benchmarking:
+
+1. **Text-to-Code (T2C):** Retrieve relevant code given a natural language problem description.
+2. **Code-to-Code (C2C):** Retrieve other implementations of the same problem based on a given solution.
+3. **Problem-to-Duplicate (P2D):** Detect duplicate or near-duplicate problems from existing contest archives.
+4. **Simplified-to-Full (S2F):** Retrieve the original full version of a simplified problem.
+
 
 ## 🧰 Repository Contents
 
@@ -84,20 +97,41 @@ export HF_ENDPOINT=https://hf-mirror.com
 
 ## 🚀 Run Local Retrieval Service
 
-1. **Download embeddings:**
 
-   * From: [HF dataset CPRet-Embeddings](https://huggingface.co/datasets/coldchair16/CPRet-Embeddings)
-   * Download the following files into `cp-retrieval-server/`:
+1.  **Download embeddings:**
 
-     * `probs_embs.npy`
-     * `probs.jsonl`
+    * **If you are using the new model, `CPRetriever-Prob-Qwen3-4B`:**
+        * Please download the following files from [HF dataset CPRet-Embeddings](https://huggingface.co/datasets/coldchair16/CPRet-Embeddings) into the `cp-retrieval-server/` directory:
+            * `probs_2507.jsonl`
+            * `probs_2507_embs.npy`
 
-2. **Start the service:**
+    * **If you are using the old model, `CPRetriever-Prob`:**
+        * Please download the following files from [HF dataset CPRet-Embeddings](https://huggingface.co/datasets/coldchair16/CPRet-Embeddings) into the `cp-retrieval-server/` directory:
+            * `probs_embs.npy`
+            * `probs.jsonl`
 
-   ```bash
-   cd cp-retrieval-server
-   python app.py
-   ```
+
+
+
+2.  **Start the service:**
+
+    ```bash
+    cd cp-retrieval-server
+    ```
+
+    If you're using the **old model (`CPRetriever-Prob`)**, set the following environment variables before starting the service:
+
+    ```bash
+    export MODEL_PATH=coldchair16/CPRetriever-Prob
+    export EMB_PATH=./probs_embs.npy
+    export PROB_PATH=./probs.jsonl
+    ```
+
+    Then, run:
+
+    ```bash
+    python app.py
+    ```
 
 3. **About the Dataset:**
 
@@ -110,17 +144,25 @@ export HF_ENDPOINT=https://hf-mirror.com
    * [Luogu](https://www.luogu.com.cn/)
    * [Loj](https://loj.ac/)
 
-   The data is collected up to **May 2025**.
-   You can add your own data source and generate embeddings using [`compute_embs.py`](cp-retrieval-server/compute_embs.py).
+   The data is collected up to **July 2025**.
+   You can add your own data source and generate embeddings using [`compute_embs.py`](cp-retrieval-server/compute_embs.py). Running this process for the current database on an A800 GPU takes approximately 4.5 GPU hours.
+
    If you have access to a larger or more diverse problem dataset, **we welcome contributions and are happy to update the collection** — feel free to contact us (231775009@qq.com) or open an issue/pull request.
 
-4. **System Requirements:**
 
-   This service can be run on **CPU** or **GPU**, depending on your environment.
-   We recommend at least **16GB of system memory or GPU VRAM** for smooth operation.
+4.  **System Requirements:**
 
-   * On **CPU** (8 cores): typical query latency is **10–20 seconds**.
-   * On **GPU** (e.g., A800): typical query latency is **0.1–1 seconds**.
+    This service can be run on **CPU** or **GPU**, depending on your environment.
+    We recommend the following memory for smooth operation:
+
+    * For the **2B old models** (e.g., `CPRetriever-Prob`): at least **16GB of system memory or GPU VRAM**.
+    * For the **4B new model** (`CPRetriever-Prob-Qwen3-4B`): **32GB or more of system memory or GPU VRAM**.
+
+    Typical query latency:
+
+    * On **CPU** (8 cores): **10–20 seconds**.
+    * On **GPU** (e.g., A800): **0.1–1 seconds**.
+
 
 ---
 

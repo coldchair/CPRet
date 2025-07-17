@@ -2,6 +2,11 @@
 {% block content %}
 <h1 class="h4 mb-4">{{ t.site_name }}</h1>
 
+{# New Info Banner for Model and Database Update #}
+<div class="alert alert-info" role="alert">
+  {{ t.info | safe }}
+</div>
+
 {# New Domain Announcement #}
 <div class="alert alert-success" role="alert">
   {{ t.new_domain_info | safe }}

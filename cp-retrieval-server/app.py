@@ -15,6 +15,7 @@ I18N = {
     "zh": {
         "site_name" : "CPRet：编程竞赛题目检索",
         "new_domain_info": "我们的最新域名是 <a href='https://cpret.online' target='_blank' class='alert-link'>cpret.online</a>，欢迎收藏！",
+        "info": "📢 2025 年 7 月更新：我们已升级模型并同步更新了题目数据库，检索效果更佳！",
         "placeholder": "输入题目描述或简略题意 …",
         "template_btn": "填入示例查询",
         "search_btn": "搜索",
@@ -32,6 +33,7 @@ I18N = {
     "en": {
         "site_name" : "CPRet: Competitive Programming Problem Retrieval",
         "new_domain_info": "Our new domain is <a href='https://cpret.online' target='_blank' class='alert-link'>cpret.online</a>. Please bookmark it!",
+        "info": "📢 July 2025 Update: We've upgraded our model and synchronized the problem database for better retrieval! ",
         "placeholder": "Enter problem description or simplified statement…",
         "template_btn": "Insert example query",
         "search_btn": "Search",
@@ -61,10 +63,16 @@ def detect_lang():
 SEARCH_STATS_PATH = "search_stats.json"
 MODEL_PATH = os.getenv(
     "MODEL_PATH",
-    "coldchair16/CPRetriever-Prob"
+    "coldchair16/CPRetriever-Prob-Qwen3-4B"
 )
-EMB_PATH   = "./probs_embs.npy"
-PROB_PATH  = "./probs.jsonl"
+EMB_PATH   = os.getenv(
+    'EMB_PATH',
+    './probs_2507_embs.npy'
+)
+PROB_PATH  = os.getenv(
+    'PROB_PATH',
+    './probs_2507.jsonl'
+)
 PAGE_SIZE  = 20         # Number of results per page
 # ------------------------------------- #
 

@@ -13,12 +13,16 @@ if __name__ == "__main__":
                         type=str,
                         default='coldchair16/CPRetriever-Prob',
                         help="Path to the SentenceTransformer model")
+    parser.add_argument("--input_path",
+                        type=str,
+                        default='./probs.jsonl',
+                        help="Path to the input JSONL file containing sentences")
 
     args = parser.parse_args()
 
     sentences = []
 
-    input_path = './probs.jsonl'
+    input_path = args.input_path
     with open(input_path, 'r') as f:
         for line in f.readlines():
             line = line.strip()
@@ -44,7 +48,8 @@ if __name__ == "__main__":
 
     print("Embeddings computed. Shape:", emb.shape)
 
-    save_path = os.path.join(save_dir, f"probs_embs.npy")
+    save_name = f"{input_path.split('/')[-1].replace('.jsonl', '')}_embs.npy"
+    save_path = os.path.join(save_dir, save_name)
     emb = emb.astype('float32')
     np.save(save_path, emb)
 
