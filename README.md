@@ -158,10 +158,14 @@ export HF_ENDPOINT=https://hf-mirror.com
     * For the **2B old models** (e.g., `CPRetriever-Prob`): at least **16GB of system memory or GPU VRAM**.
     * For the **4B new model** (`CPRetriever-Prob-Qwen3-4B`): **32GB or more of system memory or GPU VRAM**.
 
+    The above requirements are for fp32; if the device supports bf16, only half of the memory/VRAM is needed.
+
     Typical query latency:
 
     * On **CPU** (8 cores): **10–20 seconds**.
     * On **GPU** (e.g., A800): **0.1–1 seconds**.
+  
+    Inference time depends on the input length.
 
 
 ---
