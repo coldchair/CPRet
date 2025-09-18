@@ -25,6 +25,8 @@ It runs the same codebase and embedding model as the local deployment (see below
 
 ## 🚀 News
 
+**Sept 2025:** 🎉 We’re excited to announce that our paper has been accepted to the **NeurIPS 2025 D&B Track**!
+
 **July 2025: CPRetriever-Prob-Qwen3-4B Released with Enhanced Retrieval Performance!**
 
 We're excited to announce a major update to the CPRetriever model series! We've trained the new [**CPRetriever-Prob-Qwen3-4B**](https://huggingface.co/coldchair16/CPRetriever-Prob-Qwen3-4B) model based on [**Qwen3-Embedding-4B**](https://huggingface.co/Qwen/Qwen3-Embedding-4B), released in June 2025, and it has achieved **state-of-the-art results** in problem-related retrieval tasks. Concurrently, we've also updated our website's retrieval problem database to the latest July 2025 version.
