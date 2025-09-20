@@ -1,5 +1,6 @@
 import os
 # os.environ['HF_ENDPOINT'] = 'https://hf-mirror.com'
+import torch
 import math
 import json
 import numpy as np
@@ -15,6 +16,7 @@ I18N = {
     "zh": {
         "site_name" : "CPRet：编程竞赛题目检索",
         "new_domain_info": "我们的最新域名是 <a href='https://cpret.online' target='_blank' class='alert-link'>cpret.online</a>，欢迎收藏！",
+        "paper_info": "📰 2025 年 9 月更新：🎉 恭喜！我们的项目论文 <a href='https://neurips.cc/virtual/2025/poster/121814' target='_blank'>CPRet</a> 被 NeurIPS 2025 D&B track 接收！",
         "info": "📢 2025 年 7 月更新：我们已升级模型并同步更新了题目数据库，检索效果更佳！",
         "placeholder": "输入题目描述或简略题意 …",
         "template_btn": "填入示例查询",
@@ -31,11 +33,12 @@ I18N = {
         "example_report": "使用示例（实测报告）",
         "filter_by_oj": "筛选 OJ",
         "select_all": "全选",      
-        "deselect_all": "全不选",  
+        "deselect_all": "全不选",
     },
     "en": {
         "site_name" : "CPRet: Competitive Programming Problem Retrieval",
         "new_domain_info": "Our new domain is <a href='https://cpret.online' target='_blank' class='alert-link'>cpret.online</a>. Please bookmark it!",
+        "paper_info": "📰 September 2025 Update: 🎉 Congrats! Our project paper <a href='https://neurips.cc/virtual/2025/poster/121814' target='_blank'>CPRet</a> has been accepted by the NeurIPS 2025 D&B track!",
         "info": "📢 July 2025 Update: We've upgraded our model and synchronized the problem database for better retrieval! ",
         "placeholder": "Enter problem description or simplified statement…",
         "template_btn": "Insert example query",
@@ -52,7 +55,7 @@ I18N = {
         "example_report": "Test Cases (Demo Report)",
         "filter_by_oj": "Filter by OJ",
         "select_all": "Select All",      
-        "deselect_all": "Deselect All",  
+        "deselect_all": "Deselect All",
     },
 }
 
@@ -79,6 +82,11 @@ PROB_PATH  = os.getenv(
     'PROB_PATH',
     './probs_2507.jsonl'
 )
+BF_16 = os.getenv(
+    "BF_16",
+    1,
+)
+
 PAGE_SIZE  = 20         # Number of results per page
 # ------------------------------------- #
 
@@ -86,7 +94,10 @@ app = Flask(__name__)
 
 # ---------- Load model & data on startup ---------- #
 print("Loading SentenceTransformer model …")
-model = SentenceTransformer(MODEL_PATH, trust_remote_code=True)
+if BF_16 == 1:
+    model = SentenceTransformer(MODEL_PATH, trust_remote_code=True, model_kwargs={"torch_dtype": torch.bfloat16})
+else:
+    model = SentenceTransformer(MODEL_PATH, trust_remote_code=True)
 model.tokenizer.model_max_length = 1024
 model.max_seq_length            = 1024
 
@@ -114,7 +125,8 @@ def _hash(text: str) -> str:
 @lru_cache(maxsize=1024)   # Cache up to 1024 different queries
 def search_once(q: str):
     """Return ranked indices and similarity list (numpy array -> Python list)"""
-    q_emb = model.encode(q, convert_to_tensor=True).cpu().numpy()
+    # -> float32
+    q_emb = model.encode(q, convert_to_tensor=True).to(torch.float32).cpu().numpy()
     q_emb = q_emb / np.linalg.norm(q_emb)
     sims  = embs.dot(q_emb)
     idx   = sims.argsort()[::-1]

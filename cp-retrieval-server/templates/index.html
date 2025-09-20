@@ -2,13 +2,15 @@
 {% block content %}
 <h1 class="h4 mb-4">{{ t.site_name }}</h1>
 
-{# New Info Banner for Model and Database Update #}
-<div class="alert alert-info" role="alert">
+<div class="alert alert-warning" role="alert" style="font-size:0.85rem; padding:0.25rem 0.5rem; line-height:1.2; margin:0.1;">
+  {{ t.paper_info | safe }}
+</div>
+
+<div class="alert alert-info" role="alert" style="font-size:0.85rem; padding:0.25rem 0.5rem; line-height:1.2; margin:0.1;">
   {{ t.info | safe }}
 </div>
 
-{# New Domain Announcement #}
-<div class="alert alert-success" role="alert">
+<div class="alert alert-success" role="alert" style="font-size:0.85rem; padding:0.25rem 0.5rem; line-height:1.2; margin:0.1;">
   {{ t.new_domain_info | safe }}
 </div>
 

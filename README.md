@@ -129,6 +129,12 @@ export HF_ENDPOINT=https://hf-mirror.com
     export PROB_PATH=./probs.jsonl
     ```
 
+    Note: bf16 is enabled by default. If your device does not support it, set the environment variable BF_16=0:
+
+    ```bash
+    export BF_16=0
+    ````
+
     Then, run:
 
     ```bash
