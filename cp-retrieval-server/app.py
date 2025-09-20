@@ -15,7 +15,7 @@ from datetime import datetime
 I18N = {
     "zh": {
         "site_name" : "CPRet：编程竞赛题目检索",
-        "new_domain_info": "我们的最新域名是 <a href='https://cpret.online' target='_blank' class='alert-link'>cpret.online</a>，欢迎收藏！",
+        "new_domain_info": "我们的最新域名是 <a href='https://cpret.online' target='_blank' class='alert-link'>cpret.online</a>，我们的 GitHub 仓库是 <a href='https://github.com/coldchair/CPRet' target='_blank' class='alert-link'>CPRet</a>，欢迎收藏或 star！",
         "paper_info": "📰 2025 年 9 月更新：🎉 恭喜！我们的项目论文 <a href='https://neurips.cc/virtual/2025/poster/121814' target='_blank'>CPRet</a> 被 NeurIPS 2025 D&B track 接收！",
         "info": "📢 2025 年 7 月更新：我们已升级模型并同步更新了题目数据库，检索效果更佳！",
         "placeholder": "输入题目描述或简略题意 …",
@@ -37,7 +37,7 @@ I18N = {
     },
     "en": {
         "site_name" : "CPRet: Competitive Programming Problem Retrieval",
-        "new_domain_info": "Our new domain is <a href='https://cpret.online' target='_blank' class='alert-link'>cpret.online</a>. Please bookmark it!",
+        "new_domain_info": "Our new domain is <a href='https://cpret.online' target='_blank' class='alert-link'>cpret.online</a>. Our GitHub repo is <a href='https://github.com/coldchair/CPRet' target='_blank' class='alert-link'>CPRet</a>. Please bookmark or star it!",
         "paper_info": "📰 September 2025 Update: 🎉 Congrats! Our project paper <a href='https://neurips.cc/virtual/2025/poster/121814' target='_blank'>CPRet</a> has been accepted by the NeurIPS 2025 D&B track!",
         "info": "📢 July 2025 Update: We've upgraded our model and synchronized the problem database for better retrieval! ",
         "placeholder": "Enter problem description or simplified statement…",

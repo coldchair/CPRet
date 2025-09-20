@@ -2,22 +2,22 @@
 {% block content %}
 <h1 class="h4 mb-4">{{ t.site_name }}</h1>
 
-<div class="alert alert-warning" role="alert" style="font-size:0.85rem; padding:0.25rem 0.5rem; line-height:1.2; margin:0.1;">
+<div class="alert alert-warning" role="alert" style="font-size:0.90rem; padding:0.25rem 0.5rem; line-height:1.2; margin:0.05;">
   {{ t.paper_info | safe }}
 </div>
 
-<div class="alert alert-info" role="alert" style="font-size:0.85rem; padding:0.25rem 0.5rem; line-height:1.2; margin:0.1;">
+<div class="alert alert-info" role="alert" style="font-size:0.90rem; padding:0.25rem 0.5rem; line-height:1.2; margin:0.05;">
   {{ t.info | safe }}
 </div>
 
-<div class="alert alert-success" role="alert" style="font-size:0.85rem; padding:0.25rem 0.5rem; line-height:1.2; margin:0.1;">
+<div class="alert alert-success" role="alert" style="font-size:0.90rem; padding:0.25rem 0.5rem; line-height:1.2; margin:0.05;">
   {{ t.new_domain_info | safe }}
 </div>
 
 <form method="get" action="{{ url_for('index') }}">
   <input type="hidden" name="lang" value="{{ lang }}">
   <div class="mb-3">
-    <textarea id="query-box" name="q" class="form-control" rows="4"
+    <textarea id="query-box" name="q" class="form-control mb-3" rows="4"
               placeholder="{{ t.placeholder }}">{{ query }}</textarea>
     <button type="button" class="btn btn-sm btn-outline-secondary me-3" onclick="fillTemplate()">
       💡 {{ t.template_btn }}
