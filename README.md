@@ -155,7 +155,7 @@ export HF_ENDPOINT=https://hf-mirror.com
    The data is collected up to **July 2025**.
    You can add your own data source and generate embeddings using [`compute_embs.py`](cp-retrieval-server/compute_embs.py). Running this process for the current database on an A800 GPU takes approximately 4.5 GPU hours.
 
-   If you have access to a larger or more diverse problem dataset, **we welcome contributions and are happy to update the collection** — feel free to contact us (231775009@qq.com) or open an issue/pull request.
+   If you have access to a larger or more diverse problem dataset, **we welcome contributions and are happy to update the collection** — feel free to contact us (2317757009@qq.com) or open an issue/pull request.
 
 
 4.  **System Requirements:**
