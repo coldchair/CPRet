@@ -18,10 +18,11 @@ I18N = {
         "new_domain_info": "我们的最新域名是 <a href='https://cpret.online' target='_blank' class='alert-link'>cpret.online</a>，我们的 GitHub 仓库是 <a href='https://github.com/coldchair/CPRet' target='_blank' class='alert-link'>CPRet</a>，欢迎收藏或 star！",
         "paper_info": "📰 2025 年 9 月更新：🎉 恭喜！我们的项目论文 <a href='https://neurips.cc/virtual/2025/poster/121814' target='_blank'>CPRet</a> 被 NeurIPS 2025 D&B track 接收！",
         "info": "📢 2025 年 7 月更新：我们已升级模型并同步更新了题目数据库，检索效果更佳！",
+        "info2": "📢 2025 年 10 月更新：新增了部分 OJ 的题目，并进一步优化了模型效果！",
         "placeholder": "输入题目描述或简略题意 …",
         "template_btn": "填入示例查询",
         "search_btn": "搜索",
-        "summary"   : "共 <strong>{total}</strong> 条结果，页 {page}/{max_page}，耗时 {elapsed:.1f} ms",
+        "summary"   : "共 <strong>{total}</strong> 条结果，页 {page}/{max_page}，耗时 {elapsed:.1f} ms",
         "prev"      : "上一页",
         "next"      : "下一页",
         "untitled"  : "未命名",
@@ -39,11 +40,12 @@ I18N = {
         "site_name" : "CPRet: Competitive Programming Problem Retrieval",
         "new_domain_info": "Our new domain is <a href='https://cpret.online' target='_blank' class='alert-link'>cpret.online</a>. Our GitHub repo is <a href='https://github.com/coldchair/CPRet' target='_blank' class='alert-link'>CPRet</a>. Please bookmark or star it!",
         "paper_info": "📰 September 2025 Update: 🎉 Congrats! Our project paper <a href='https://neurips.cc/virtual/2025/poster/121814' target='_blank'>CPRet</a> has been accepted by the NeurIPS 2025 D&B track!",
-        "info": "📢 July 2025 Update: We've upgraded our model and synchronized the problem database for better retrieval! ",
+        "info": "📢 July 2025 Update: We've upgraded our model and synchronized the problem database for better retrieval!",
+        "info2": "📢 October 2025 Update: Added new problems from several OJs and further optimized the model performance!",
         "placeholder": "Enter problem description or simplified statement…",
         "template_btn": "Insert example query",
         "search_btn": "Search",
-        "summary"   : "<strong>{total}</strong> results, page {page}/{max_page}, {elapsed:.1f} ms",
+        "summary"   : "<strong>{total}</strong> results, page {page}/{max_page}, {elapsed:.1f} ms",
         "prev"      : "Prev",
         "next"      : "Next",
         "untitled"  : "Untitled",
@@ -59,6 +61,7 @@ I18N = {
     },
 }
 
+
 def detect_lang():
     """Language priority: ?lang= -> Accept-Language -> zh"""
     qlang = request.args.get("lang")
@@ -72,15 +75,15 @@ def detect_lang():
 SEARCH_STATS_PATH = "search_stats.json"
 MODEL_PATH = os.getenv(
     "MODEL_PATH",
-    "coldchair16/CPRetriever-Prob-Qwen3-4B"
+    "coldchair16/CPRetriever-Prob-Qwen3-4B-2510"
 )
 EMB_PATH   = os.getenv(
     'EMB_PATH',
-    './probs_2507_embs.npy'
+    './probs_2510_embs.npy'
 )
 PROB_PATH  = os.getenv(
     'PROB_PATH',
-    './probs_2507.jsonl'
+    './probs_2510.jsonl'
 )
 BF_16 = os.getenv(
     "BF_16",
@@ -98,8 +101,8 @@ if BF_16 == 1:
     model = SentenceTransformer(MODEL_PATH, trust_remote_code=True, model_kwargs={"torch_dtype": torch.bfloat16})
 else:
     model = SentenceTransformer(MODEL_PATH, trust_remote_code=True)
-model.tokenizer.model_max_length = 1024
-model.max_seq_length            = 1024
+model.tokenizer.model_max_length = 2048
+model.max_seq_length            = 2048
 
 print("Loading pre‑computed embeddings …")
 embs = np.load(EMB_PATH).astype("float32")
