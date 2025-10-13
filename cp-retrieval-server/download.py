@@ -1,6 +1,6 @@
 import os
 # 修改为镜像源
-# os.environ['HF_ENDPOINT'] = 'https://hf-mirror.com'
+os.environ['HF_ENDPOINT'] = 'https://hf-mirror.com'
 
 from huggingface_hub import snapshot_download
 
@@ -13,7 +13,6 @@ snapshot_download(
     repo_type='dataset',
     local_dir=os.path.join(download_dir),
     allow_patterns=['probs_2510*'],
-    # allow_patterns=['probs_2507*'],
     local_dir_use_symlinks=False,
     resume_download=True,
     max_workers=4,
@@ -24,7 +23,7 @@ print(f"Finished downloading {repo_id} to {download_dir}")
 # download models from Hugging Face
 # download_dir = './'
 # repo_id_list = [
-#     'coldchair16/CPRetriever-Prob-Qwen3-4B',
+#     'coldchair16/CPRetriever-Prob-Qwen3-4B-2510',
 # ]
 # for repo_id in repo_id_list:
 #     model_name = repo_id.split("/")[-1]
