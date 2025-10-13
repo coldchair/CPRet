@@ -25,19 +25,23 @@ It runs the same codebase and embedding model as the local deployment (see below
 
 ## 🚀 News
 
-**Sept 2025:** 🎉 We’re excited to announce that our paper has been accepted to the **NeurIPS 2025 D&B Track**!
+**Oct 2025: CPRetriever-Prob-Qwen3-4B-2510 Released with Enhanced Retrieval Performance!**
 
-**July 2025: CPRetriever-Prob-Qwen3-4B Released with Enhanced Retrieval Performance!**
-
-We're excited to announce a major update to the CPRetriever model series! We've trained the new [**CPRetriever-Prob-Qwen3-4B**](https://huggingface.co/coldchair16/CPRetriever-Prob-Qwen3-4B) model based on [**Qwen3-Embedding-4B**](https://huggingface.co/Qwen/Qwen3-Embedding-4B), released in June 2025, and it has achieved **state-of-the-art results** in problem-related retrieval tasks. Concurrently, we've also updated our website's retrieval problem database to the latest July 2025 version.
+We're excited to announce a major update to the CPRetriever model series! We've trained the new [**CPRetriever-Prob-Qwen3-4B-2510**](https://huggingface.co/coldchair16/CPRetriever-Prob-Qwen3-4B-2510) model based on [**Qwen3-Embedding-4B**](https://huggingface.co/Qwen/Qwen3-Embedding-4B), released in June 2025, and it has achieved **state-of-the-art results** in problem-related retrieval tasks. Concurrently, we've also updated our website's retrieval problem database to the latest Oct 2025 version.
 
 Here's a comparison of model performance:
 
 | model | type | size | Text-to-Code | Code-to-Code | Problem-to-Duplicate | Simplified-to-Full | Avg |
 | :------------------------ | :--- | :--- | :----------- | :----------- | :------------------- | :----------------- | :----- |
-| CPRetreiver-Code | code | 2B | 70.40 | 70.59 | 38.68 | 81.45 | 65.28 |
-| CPRetreiver-Prob | code | 2B | 56.50 | 70.68 | 60.06 | 90.74 | 69.50 |
+| CPRetriever-Code | code | 2B | 70.40 | 70.59 | 38.68 | 81.45 | 65.28 |
+| CPRetriever-Prob | code | 2B | 56.50 | 70.68 | 60.06 | 90.74 | 69.50 |
 | CPRetriever-Prob-Qwen3-4B | code | 4B | 65.85 | 70.19 | 71.45 | 95.03 | 75.63 |
+| CPRetriever-Prob-Qwen3-4B-2510 | code | 4B | 80.84 | 87.10 | 74.33 | 96.15 | 84.61 |
+
+The CPRetriever-Prob-Qwen3-4B-2510 model follows the same training procedure and dataset as CPRetriever-Prob-Qwen3-4B, but was retrained in October 2025 with adjusted data proportions, an extended maximum sequence length of 2048, and optimized hyperparameters for improved performance.
+
+
+**Sept 2025:** 🎉 We’re excited to announce that our paper has been accepted to the **NeurIPS 2025 D&B Track**!
 
 ## 📌 Overview
 
@@ -45,7 +49,7 @@ Here's a comparison of model performance:
 
 * A large-scale dataset and benchmark for retrieval tasks in coding contests.
 * A dual-stage training pipeline with contrastive pretraining and task-specific fine-tuning.
-* A local retrieval server for **simplified description** and **duplicate problem** search, powered by our trained model **[CPRet-Prob](https://huggingface.co/coldchair16/CPRetriever-Prob)** (based on [Salesforce/SFR-Embedding-Code-2B\_R](https://huggingface.co/Salesforce/SFR-Embedding-Code-2B_R)).
+* A local retrieval server for **simplified description** and **duplicate problem** search, powered by our trained model [**CPRetriever-Prob-Qwen3-4B-2510**](https://huggingface.co/coldchair16/CPRetriever-Prob-Qwen3-4B-2510).
 
 We define the following **four core retrieval tasks** to support both practical applications and academic benchmarking:
 
@@ -102,16 +106,17 @@ export HF_ENDPOINT=https://hf-mirror.com
 
 1.  **Download embeddings:**
 
-    * **If you are using the new model, `CPRetriever-Prob-Qwen3-4B`:**
+    * You run `cp-retrieval-server/download.py` to download the problems and embeddings.
+
+    * **If you are using the new model, `CPRetriever-Prob-Qwen3-4B-2510`:**
         * Please download the following files from [HF dataset CPRet-Embeddings](https://huggingface.co/datasets/coldchair16/CPRet-Embeddings) into the `cp-retrieval-server/` directory:
-            * `probs_2507.jsonl`
-            * `probs_2507_embs.npy`
+            * `probs_2510.jsonl`
+            * `probs_2510_embs.npy`
 
     * **If you are using the old model, `CPRetriever-Prob`:**
         * Please download the following files from [HF dataset CPRet-Embeddings](https://huggingface.co/datasets/coldchair16/CPRet-Embeddings) into the `cp-retrieval-server/` directory:
             * `probs_embs.npy`
             * `probs.jsonl`
-
 
 
 
@@ -143,7 +148,7 @@ export HF_ENDPOINT=https://hf-mirror.com
 
 3. **About the Dataset:**
 
-   The current dataset includes problems from the following online judges:
+   The current retrieval problem database (as of Oct 2025) includes problems from the following online judges:
 
    * [Codeforces](https://codeforces.com/)
    * [AtCoder](https://atcoder.jp/)
@@ -151,8 +156,10 @@ export HF_ENDPOINT=https://hf-mirror.com
    * [Nowcoder](https://ac.nowcoder.com/)
    * [Luogu](https://www.luogu.com.cn/)
    * [Loj](https://loj.ac/)
+   * [CodeChef](https://www.codechef.com/dashboard)
+   * [AIZU](https://judge.u-aizu.ac.jp/onlinejudge/)
 
-   The data is collected up to **July 2025**.
+   The data is collected up to **Oct 2025**.
    You can add your own data source and generate embeddings using [`compute_embs.py`](cp-retrieval-server/compute_embs.py). Running this process for the current database on an A800 GPU takes approximately 4.5 GPU hours.
 
    If you have access to a larger or more diverse problem dataset, **we welcome contributions and are happy to update the collection** — feel free to contact us (2317757009@qq.com) or open an issue/pull request.
@@ -164,7 +171,7 @@ export HF_ENDPOINT=https://hf-mirror.com
     We recommend the following memory for smooth operation:
 
     * For the **2B old models** (e.g., `CPRetriever-Prob`): at least **16GB of system memory or GPU VRAM**.
-    * For the **4B new model** (`CPRetriever-Prob-Qwen3-4B`): **32GB or more of system memory or GPU VRAM**.
+    * For the **4B new model** (`CPRetriever-Prob-Qwen3-4B-2510`): **32GB or more of system memory or GPU VRAM**.
 
     The above requirements are for fp32; if the device supports bf16, only half of the memory/VRAM is needed.
 
@@ -253,7 +260,7 @@ If you find **CPRet** useful in your research or applications, please consider c
 
 This work is released for **research and non-commercial use only**.
 
-> **License**: CC BY-NC 4.0 (Attribution-NonCommercial)
-> [📜 View full license text](https://creativecommons.org/licenses/by-nc/4.0/)
+**License:** [CC BY-NC 4.0 (Attribution–NonCommercial)](https://creativecommons.org/licenses/by-nc/4.0/)
+
 
 
