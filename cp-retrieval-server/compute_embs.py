@@ -17,6 +17,10 @@ if __name__ == "__main__":
                         type=str,
                         default='./probs.jsonl',
                         help="Path to the input JSONL file containing sentences")
+    parser.add_argument("--max_length",
+                        type=int,
+                        default=2048,
+                        help="Maximum length of input sentences")
 
     args = parser.parse_args()
 
@@ -39,8 +43,8 @@ if __name__ == "__main__":
     model_name = os.path.basename(model_path.rstrip('/'))
 
     model = SentenceTransformer(model_path, trust_remote_code=True)
-    model.tokenizer.model_max_length = 1024
-    model.max_seq_length = 1024
+    model.tokenizer.model_max_length = args.max_length
+    model.max_seq_length = args.max_length
 
     pool = model.start_multi_process_pool()
     emb = model.encode_multi_process(sentences, pool, show_progress_bar=True, batch_size=8)
