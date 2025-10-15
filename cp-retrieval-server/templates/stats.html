@@ -3,22 +3,146 @@
 <head>
     <meta charset="UTF-8">
     <title>{{ t.site_name }} - {{ t.view_stats }}</title>
+    <!-- 引入 Plotly -->
+    <script src="https://cdn.plot.ly/plotly-2.30.0.min.js"></script>
+    <style>
+        body {
+            font-family: sans-serif;
+            text-align: center;
+            padding: 20px;
+        }
+        #chart {
+            width: 90%;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        table {
+            margin: 20px auto;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 6px 10px;
+        }
+        th {
+            background-color: #f8f8f8;
+        }
+    </style>
 </head>
 <body>
     <h1>{{ t.site_name }} - {{ t.view_stats }}</h1>
-    <table border="1" cellpadding="5">
-        <tr>
-            <th>{{ t.date }}</th>
-            <th>{{ t.search_count }}</th>
-        </tr>
-        {% for date, count in stats %}
-        <tr>
-            <td>{{ date }}</td>
-            <td>{{ count }}</td>
-        </tr>
-        {% endfor %}
-    </table>
-    <p><a href="{{ url_for('index', lang=lang) }}">{{ t.back }}</a>
-    </p>
+
+    <!-- Plotly 图表容器 -->
+    <div id="chart"></div>
+
+    <!-- 可选：保留原表格（含总数行） -->
+    <div style="max-height: 300px; overflow-y: auto; margin: 0 auto; width: fit-content;">
+        <table>
+            <!-- 总数行 -->
+            <tr style="background-color:#eef5ff; font-weight:bold;">
+                <td colspan="2">
+                    {{ t.total_search_count or "总搜索次数" }}：
+                    {{ stats | map(attribute=1) | sum }}
+                </td>
+            </tr>
+            <!-- 表头 -->
+            <tr>
+                <th>{{ t.date }}</th>
+                <th>{{ t.search_count }}</th>
+            </tr>
+            <!-- 数据行 -->
+            {% for date, count in stats %}
+            <tr>
+                <td>{{ date }}</td>
+                <td>{{ count }}</td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+
+    <p><a href="{{ url_for('index', lang=lang) }}">{{ t.back }}</a></p>
+
+   <script>
+        // 从 Flask 模板中获取数据
+        const dates = {{ stats | map(attribute=0) | list | tojson }};
+        const counts = {{ stats | map(attribute=1) | list | tojson }};
+
+        // ======== 新增：计算滑动平均（类似 TensorBoard 平滑） ========
+        function smooth(data, weight = 0.9) {
+            // weight 越大越平滑 (0~1)
+            let last = data[0];
+            const smoothed = [last];
+            for (let i = 1; i < data.length; i++) {
+                const sm = last * weight + data[i] * (1 - weight);
+                smoothed.push(sm);
+                last = sm;
+            }
+            return smoothed;
+        }
+
+        const smoothCounts = smooth(counts, 0.85); // 可调平滑系数
+
+        // ======== 原始曲线 ========
+        const trace = {
+            x: dates,
+            y: counts,
+            type: 'scatter',
+            mode: 'lines+markers',
+            line: {
+                color: '#1f77b4',
+                width: 3
+            },
+            marker: {
+                size: 6
+            },
+            fill: 'tozeroy',
+            fillcolor: 'rgba(31, 119, 180, 0.2)',
+            name: '{{ t.search_count }}'
+        };
+
+        // ======== 新增：渐近平均曲线 ========
+        const avgTrace = {
+            x: dates,
+            y: smoothCounts,
+            type: 'scatter',
+            mode: 'lines',
+            line: {
+                color: 'rgba(255, 99, 71, 0.9)',  // 红橙色线
+                width: 3,
+                dash: 'dot'                      // 虚线样式
+            },
+            name: '{{ t.moving_average or "渐近平均" }}'
+        };
+
+        // ======== Plotly 布局 ========
+        const layout = {
+            title: '{{ t.view_stats }}',
+            xaxis: {
+                title: '{{ t.date }}',
+                tickangle: -45
+            },
+            yaxis: {
+                title: '{{ t.search_count }}',
+                rangemode: 'tozero'
+            },
+            margin: { t: 50, l: 60, r: 20, b: 100 },
+            hovermode: 'x unified',
+            plot_bgcolor: 'rgba(0,0,0,0)',
+            paper_bgcolor: 'rgba(0,0,0,0)',
+            font: { size: 14 },
+            legend: { orientation: 'h', y: -0.2 }
+        };
+
+        const config = {
+            responsive: true,
+            displayModeBar: true,
+            displaylogo: false
+        };
+
+        // ======== 绘制图表 ========
+        Plotly.newPlot('chart', [trace, avgTrace], layout, config);
+    </script>
+
 </body>
 </html>
