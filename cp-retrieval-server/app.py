@@ -31,10 +31,12 @@ I18N = {
         "view_stats": "📊 每日搜索统计",
         "date": "日期",
         "search_count": "搜索次数",
+        "total_search_count": "总搜索次数",
         "example_report": "使用示例（实测报告）",
         "filter_by_oj": "筛选 OJ",
         "select_all": "全选",      
         "deselect_all": "全不选",
+        "moving_average": "渐近平均",
     },
     "en": {
         "site_name" : "CPRet: Competitive Programming Problem Retrieval",
@@ -54,10 +56,12 @@ I18N = {
         "view_stats": "📊 Daily Search Stats",
         "date": "Date",
         "search_count": "Search Count",
+        "total_search_count": "Total Search Count",
         "example_report": "Test Cases (Demo Report)",
         "filter_by_oj": "Filter by OJ",
         "select_all": "Select All",      
         "deselect_all": "Deselect All",
+        "moving_average": "Moving Average",
     },
 }
 
