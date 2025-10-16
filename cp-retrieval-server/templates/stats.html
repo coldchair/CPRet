@@ -65,8 +65,8 @@
 
    <script>
         // 从 Flask 模板中获取数据
-        const dates = {{ stats | map(attribute=0) | list | tojson }};
-        const counts = {{ stats | map(attribute=1) | list | tojson }};
+        const dates = {{ stats_draw | map(attribute=0) | list | tojson }};
+        const counts = {{ stats_draw | map(attribute=1) | list | tojson }};
 
         // ======== 新增：计算滑动平均（类似 TensorBoard 平滑） ========
         function smooth(data, weight = 0.9) {
