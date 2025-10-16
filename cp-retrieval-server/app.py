@@ -253,8 +253,8 @@ def stats():
     stats = load_search_stats()
     stats_data = sorted(stats.items(), key=lambda x: x[0], reverse=True)
 
-    stats_draw = stats_data[:-1] # Exclude today
-    stats_draw = list(reversed(stats_draw))
+    stats_draw = list(reversed(stats_data))
+    stats_draw = stats_draw[:-1] # Exclude today
 
     return render_template(
         "stats.html",
