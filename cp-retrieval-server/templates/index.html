@@ -17,7 +17,7 @@
 <form method="get" action="{{ url_for('index') }}">
   <input type="hidden" name="lang" value="{{ lang }}">
   <div class="mb-3">
-    <textarea id="query-box" name="q" class="form-control mb-3" rows="4"
+    <textarea id="query-box" name="q" class="form-control mb-3" rows="8"
               placeholder="{{ t.placeholder }}">{{ query }}</textarea>
     <button type="button" class="btn btn-sm btn-outline-secondary me-3" onclick="fillTemplate()">
       💡 {{ t.template_btn }}
@@ -30,21 +30,24 @@
     </a>
   </div>
   <div class="mb-3">
-    <label class="form-label d-block">{{ t.filter_by_oj }}</label>
-    <div class="mb-2">
-        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="selectAllOJs()">{{ t.select_all }}</button>
+    <div class="d-flex align-items-center mb-2">
+      <label class="form-label mb-0 me-2">{{ t.filter_by_oj }}</label>
+      <div>
+        <button type="button" class="btn btn-outline-secondary btn-sm me-1" onclick="selectAllOJs()">{{ t.select_all }}</button>
         <button type="button" class="btn btn-outline-secondary btn-sm" onclick="deselectAllOJs()">{{ t.deselect_all }}</button>
+      </div>
     </div>
-    
+
     {% for oj_name in available_ojs %}
     <div class="form-check form-check-inline">
       <input class="form-check-input oj-checkbox" type="checkbox" name="oj" value="{{ oj_name }}"
-      id="oj-{{ loop.index }}"
-      {% if oj_name in selected_ojs %}checked{% endif %}>
+        id="oj-{{ loop.index }}"
+        {% if oj_name in selected_ojs %}checked{% endif %}>
       <label class="form-check-label" for="oj-{{ loop.index }}">{{ oj_name }}</label>
     </div>
     {% endfor %}
   </div>
+
   
   <button class="btn btn-primary">{{ t.search_btn }}</button>
   <a class="btn btn-link btn-sm ms-2" href="{{ url_for('stats', lang=lang) }}">{{ t.view_stats }}</a>
