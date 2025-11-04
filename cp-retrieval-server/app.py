@@ -83,11 +83,11 @@ MODEL_PATH = os.getenv(
 )
 EMB_PATH   = os.getenv(
     'EMB_PATH',
-    './probs_2510_embs.npy'
+    './probs_2511_embs.npy'
 )
 PROB_PATH  = os.getenv(
     'PROB_PATH',
-    './probs_2510.jsonl'
+    './probs_2511.jsonl'
 )
 BF_16 = os.getenv(
     "BF_16",

@@ -110,8 +110,8 @@ export HF_ENDPOINT=https://hf-mirror.com
 
     * **If you are using the new model, `CPRetriever-Prob-Qwen3-4B-2510`:**
         * Please download the following files from [HF dataset CPRet-Embeddings](https://huggingface.co/datasets/coldchair16/CPRet-Embeddings) into the `cp-retrieval-server/` directory:
-            * `probs_2510.jsonl`
-            * `probs_2510_embs.npy`
+            * `probs_2511.jsonl`
+            * `probs_2511_embs.npy`
 
     * **If you are using the old model, `CPRetriever-Prob`:**
         * Please download the following files from [HF dataset CPRet-Embeddings](https://huggingface.co/datasets/coldchair16/CPRet-Embeddings) into the `cp-retrieval-server/` directory:
@@ -148,7 +148,7 @@ export HF_ENDPOINT=https://hf-mirror.com
 
 3. **About the Dataset:**
 
-   The current retrieval problem database (as of Oct 2025) includes problems from the following online judges:
+   The current retrieval problem database (as of Nov 2025) includes problems from the following online judges:
 
    * [Codeforces](https://codeforces.com/)
    * [AtCoder](https://atcoder.jp/)
@@ -158,9 +158,11 @@ export HF_ENDPOINT=https://hf-mirror.com
    * [Loj](https://loj.ac/)
    * [CodeChef](https://www.codechef.com/dashboard)
    * [AIZU](https://judge.u-aizu.ac.jp/onlinejudge/)
+   * [UOJ](https://uoj.ac/)
+   * [QOJ](https://qoj.ac/)
 
-   The data is collected up to **Oct 2025**.
-   You can add your own data source and generate embeddings using [`compute_embs.py`](cp-retrieval-server/compute_embs.py). Running this process for the current database on an A800 GPU takes approximately 4.5 GPU hours.
+   The data is collected up to **Nov 2025**.
+   You can add your own data source and generate embeddings using [`compute_embs.py`](cp-retrieval-server/compute_embs.py). Running this process for the current database on a H100 GPU takes approximately 4 GPU hours.
 
    If you have access to a larger or more diverse problem dataset, **we welcome contributions and are happy to update the collection** — feel free to contact us (2317757009@qq.com) or open an issue/pull request.
 
