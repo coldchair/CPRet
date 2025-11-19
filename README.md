@@ -11,8 +11,6 @@ We provide an **online demo** of the CPRet retrieval service, available at:
 
 👉 [https://www.cpret.online/](https://www.cpret.online/)
 
-The former IP address, http://1.94.255.218:5000/, should be updated to the new domain.
-
 This demo can assist in **duplicate problem detection** by retrieving potentially similar problems, though final identification still requires manual verification.
 
 It also supports **similar problem retrieval** to help broaden your problem-solving perspective.
