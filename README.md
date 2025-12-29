@@ -148,7 +148,7 @@ export HF_ENDPOINT=https://hf-mirror.com
 
 3. **About the Dataset:**
 
-   The current retrieval problem database (as of Nov 2025) includes problems from the following online judges:
+   The current retrieval problem database (as of Dec 2025) includes problems from the following online judges:
 
    * [Codeforces](https://codeforces.com/)
    * [AtCoder](https://atcoder.jp/)

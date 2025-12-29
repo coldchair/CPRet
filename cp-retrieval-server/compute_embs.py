@@ -11,7 +11,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--model_path",
                         type=str,
-                        default='coldchair16/CPRetriever-Prob',
+                        default='coldchair16/CPRetriever-Prob-Qwen3-4B-2510',
                         help="Path to the SentenceTransformer model")
     parser.add_argument("--input_path",
                         type=str,
