@@ -108,8 +108,8 @@ export HF_ENDPOINT=https://hf-mirror.com
 
     * **If you are using the new model, `CPRetriever-Prob-Qwen3-4B-2510`:**
         * Please download the following files from [HF dataset CPRet-Embeddings](https://huggingface.co/datasets/coldchair16/CPRet-Embeddings) into the `cp-retrieval-server/` directory:
-            * `probs_2511.jsonl`
-            * `probs_2511_embs.npy`
+            * `probs_2602.jsonl`
+            * `probs_2602_embs.npy`
 
     * **If you are using the old model, `CPRetriever-Prob`:**
         * Please download the following files from [HF dataset CPRet-Embeddings](https://huggingface.co/datasets/coldchair16/CPRet-Embeddings) into the `cp-retrieval-server/` directory:
@@ -146,7 +146,7 @@ export HF_ENDPOINT=https://hf-mirror.com
 
 3. **About the Dataset:**
 
-   The current retrieval problem database (as of Dec 2025) includes problems from the following online judges:
+   The current retrieval problem database (as of Feb 2026) includes problems from the following online judges:
 
    * [Codeforces](https://codeforces.com/)
    * [AtCoder](https://atcoder.jp/)
@@ -159,7 +159,7 @@ export HF_ENDPOINT=https://hf-mirror.com
    * [UOJ](https://uoj.ac/)
    * [QOJ](https://qoj.ac/)
 
-   The data is collected up to **Nov 2025**.
+   The data is collected up to **Feb 2026**.
    You can add your own data source and generate embeddings using [`compute_embs.py`](cp-retrieval-server/compute_embs.py). Running this process for the current database on a H100 GPU takes approximately 4 GPU hours.
 
    If you have access to a larger or more diverse problem dataset, **we welcome contributions and are happy to update the collection** — feel free to contact us (2317757009@qq.com) or open an issue/pull request.
