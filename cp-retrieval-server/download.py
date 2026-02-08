@@ -12,7 +12,7 @@ snapshot_download(
     repo_id=repo_id,
     repo_type='dataset',
     local_dir=os.path.join(download_dir),
-    allow_patterns=['probs_2512*'],
+    allow_patterns=['probs_2602*'],
     local_dir_use_symlinks=False,
     resume_download=True,
     max_workers=4,
