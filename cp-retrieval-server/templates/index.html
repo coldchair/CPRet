@@ -14,7 +14,7 @@
   {{ t.new_domain_info | safe }}
 </div>
 
-<form method="get" action="{{ url_for('index') }}">
+<form id="search-form" method="get" action="{{ url_for('index') }}">
   <input type="hidden" name="lang" value="{{ lang }}">
   <div class="mb-3">
     <textarea id="query-box" name="q" class="form-control mb-3" rows="8"
@@ -52,6 +52,36 @@
   <button class="btn btn-primary">{{ t.search_btn }}</button>
   <a class="btn btn-link btn-sm ms-2" href="{{ url_for('stats', lang=lang) }}">{{ t.view_stats }}</a>
 </form>
+
+<div id="search-progress-wrapper"
+     class="mt-3 {% if not query %}d-none{% endif %}"
+     data-estimator-a="{{ estimator_a }}"
+     data-estimator-b="{{ estimator_b }}"
+     data-estimator-ready="{{ estimator_ready }}">
+  <div class="d-flex justify-content-between align-items-center mb-1">
+    <small class="text-success fw-semibold">{{ t.search_progress }}</small>
+    <small id="search-token-count" class="text-muted">
+      {{ t.token_count_label }}: {% if query %}{{ query_token_count }}{% else %}--{% endif %}
+    </small>
+  </div>
+  <div class="progress" style="height: 0.75rem;">
+    <div id="search-progress-bar"
+         class="progress-bar bg-success {% if not query %}progress-bar-striped progress-bar-animated{% endif %}"
+         role="progressbar"
+         style="width: {% if query %}100{% else %}0{% endif %}%"
+         aria-valuemin="0"
+         aria-valuemax="100"
+         aria-valuenow="{% if query %}100{% else %}0{% endif %}">
+    </div>
+  </div>
+  <div class="small text-muted mt-2">
+    {{ t.elapsed_time }}:
+    <span id="search-elapsed-seconds">{% if query %}{{ "%.2f"|format(elapsed / 1000) }}{% else %}0.00{% endif %}</span>s
+    |
+    {{ t.estimated_time }}:
+    <span id="search-estimated-seconds">{% if estimated_ms is not none %}{{ "%.2f"|format(estimated_ms / 1000) }}{% else %}--{% endif %}</span>s
+  </div>
+</div>
 
 {% if results %}
 <hr>
@@ -120,6 +150,57 @@
 {% endif %}
 
 <script>
+  let searchProgressTimer = null;
+
+  function estimateTokenCountFromText(text) {
+    const normalized = (text || "").trim();
+    if (!normalized) return 0;
+    const cjkChars = (normalized.match(/[\u4E00-\u9FFF]/g) || []).length;
+    const words = (normalized.match(/[A-Za-z0-9_]+/g) || []).length;
+    const punctuation = (normalized.match(/[^\sA-Za-z0-9_\u4E00-\u9FFF]/g) || []).length;
+    return cjkChars + words + Math.ceil(punctuation * 0.35);
+  }
+
+  function startSearchProgressUI(tokenCountHint, estimatedMsHint) {
+    const wrapper = document.getElementById("search-progress-wrapper");
+    const bar = document.getElementById("search-progress-bar");
+    const elapsedNode = document.getElementById("search-elapsed-seconds");
+    const estimatedNode = document.getElementById("search-estimated-seconds");
+    const tokenNode = document.getElementById("search-token-count");
+    const query = document.getElementById("query-box").value || "";
+    if (!wrapper || !bar || !elapsedNode || !estimatedNode || !tokenNode || !query.trim()) return;
+
+    wrapper.classList.remove("d-none");
+    bar.classList.add("progress-bar-striped", "progress-bar-animated");
+
+    const tokenCount = Number.isFinite(tokenCountHint) ? tokenCountHint : estimateTokenCountFromText(query);
+    tokenNode.textContent = "{{ t.token_count_label }}: " + tokenCount;
+
+    const ready = wrapper.dataset.estimatorReady === "1";
+    const a = parseFloat(wrapper.dataset.estimatorA || "0");
+    const b = parseFloat(wrapper.dataset.estimatorB || "0");
+    const estimatedMs =
+      Number.isFinite(estimatedMsHint) && estimatedMsHint >= 0
+        ? estimatedMsHint
+        : (ready ? Math.max(0, a * tokenCount + b) : null);
+    estimatedNode.textContent = estimatedMs !== null ? (estimatedMs / 1000).toFixed(2) : "--";
+
+    const begin = Date.now();
+    if (searchProgressTimer) clearInterval(searchProgressTimer);
+    searchProgressTimer = setInterval(() => {
+      const elapsedMs = Date.now() - begin;
+      elapsedNode.textContent = (elapsedMs / 1000).toFixed(2);
+      let ratio = 0;
+      if (estimatedMs && estimatedMs > 0) {
+        ratio = Math.min(95, (elapsedMs / estimatedMs) * 100);
+      } else {
+        ratio = Math.min(90, elapsedMs / 80);
+      }
+      bar.style.width = ratio.toFixed(1) + "%";
+      bar.setAttribute("aria-valuenow", ratio.toFixed(1));
+    }, 120);
+  }
+
   function fillTemplate() {
     const lang = "{{ lang }}";
     const template = {
@@ -140,6 +221,49 @@
       checkbox.checked = false;
     });
   }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    const form = document.getElementById("search-form");
+    const bar = document.getElementById("search-progress-bar");
+    const submitBtn = form ? form.querySelector("button[type='submit'], button:not([type])") : null;
+    if (form) {
+      form.addEventListener("submit", async function (event) {
+        event.preventDefault();
+        const query = (document.getElementById("query-box").value || "").trim();
+        if (!query) {
+          form.submit();
+          return;
+        }
+
+        if (submitBtn) submitBtn.disabled = true;
+
+        let tokenCount = estimateTokenCountFromText(query);
+        let estimatedMs = null;
+        try {
+          const resp = await fetch("{{ url_for('estimate_eta') }}", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ q: query }),
+          });
+          if (resp.ok) {
+            const data = await resp.json();
+            if (Number.isFinite(data.token_count)) tokenCount = data.token_count;
+            if (Number.isFinite(data.estimated_ms)) estimatedMs = data.estimated_ms;
+          }
+        } catch (_) {}
+
+        startSearchProgressUI(tokenCount, estimatedMs);
+        window.setTimeout(() => form.submit(), 30);
+      });
+    }
+    if ("{{ query|e }}".trim()) {
+      if (bar) {
+        bar.classList.remove("progress-bar-striped", "progress-bar-animated");
+        bar.style.width = "100%";
+        bar.setAttribute("aria-valuenow", "100");
+      }
+    }
+  });
 </script>
 
 <div class="text-center text-muted small">
@@ -241,5 +365,3 @@
 
 
 {% endblock %}
-
-
