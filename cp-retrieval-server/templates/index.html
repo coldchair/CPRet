@@ -225,35 +225,13 @@
   document.addEventListener("DOMContentLoaded", function () {
     const form = document.getElementById("search-form");
     const bar = document.getElementById("search-progress-bar");
-    const submitBtn = form ? form.querySelector("button[type='submit'], button:not([type])") : null;
     if (form) {
-      form.addEventListener("submit", async function (event) {
-        event.preventDefault();
+      form.addEventListener("submit", function () {
         const query = (document.getElementById("query-box").value || "").trim();
         if (!query) {
-          form.submit();
           return;
         }
-
-        if (submitBtn) submitBtn.disabled = true;
-
-        let tokenCount = estimateTokenCountFromText(query);
-        let estimatedMs = null;
-        try {
-          const resp = await fetch("{{ url_for('estimate_eta') }}", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ q: query }),
-          });
-          if (resp.ok) {
-            const data = await resp.json();
-            if (Number.isFinite(data.token_count)) tokenCount = data.token_count;
-            if (Number.isFinite(data.estimated_ms)) estimatedMs = data.estimated_ms;
-          }
-        } catch (_) {}
-
-        startSearchProgressUI(tokenCount, estimatedMs);
-        window.setTimeout(() => form.submit(), 30);
+        startSearchProgressUI();
       });
     }
     if ("{{ query|e }}".trim()) {
