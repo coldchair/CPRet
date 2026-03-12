@@ -117,9 +117,18 @@ def load_json(path: str, default: Any) -> Any:
         return default
 
 
+import tempfile
 def save_json(path: str, payload: Any) -> None:
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(payload, f, ensure_ascii=False, indent=2)
+    dirname = os.path.dirname(os.path.abspath(path))
+    fd, temp_path = tempfile.mkstemp(dir=dirname, text=True)
+    try:
+        with os.fdopen(fd, 'w', encoding="utf-8") as f:
+            json.dump(payload, f, ensure_ascii=False, indent=2)
+        os.replace(temp_path, path) 
+    except Exception as e:
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+        raise e
 
 
 def parse_page(raw_page: str) -> int:
