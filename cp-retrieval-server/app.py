@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import math
 import os
+import threading
 import time
 from datetime import datetime
 from functools import lru_cache
@@ -87,8 +88,9 @@ def detect_lang():
 
 
 # ---------------- Configuration ---------------- #
-SEARCH_STATS_PATH = "search_stats.json"
-SEARCH_TIME_STATS_PATH = "search_time_stats.json"
+_APP_DIR = os.path.dirname(os.path.abspath(__file__))
+SEARCH_STATS_PATH = os.path.join(_APP_DIR, "search_stats.json")
+SEARCH_TIME_STATS_PATH = os.path.join(_APP_DIR, "search_time_stats.json")
 MODEL_PATH = os.getenv("MODEL_PATH", "coldchair16/CPRetriever-Prob-Qwen3-4B-2510")
 EMB_PATH = os.getenv("EMB_PATH", "./probs_2605_embs.npy")
 PROB_PATH = os.getenv("PROB_PATH", "./probs_2605.jsonl")
@@ -137,6 +139,39 @@ def parse_page(raw_page: str) -> int:
     except (TypeError, ValueError):
         return 1
 
+
+_search_stats_lock = threading.Lock()
+_search_stats_mem: Dict[str, int] = {}
+
+
+def _coerce_stats_dict(data: Any) -> Dict[str, int]:
+    if not isinstance(data, dict):
+        return {}
+    out: Dict[str, int] = {}
+    for k, v in data.items():
+        try:
+            out[str(k)] = int(v)
+        except (TypeError, ValueError):
+            continue
+    return out
+
+
+def _read_search_stats_file() -> Dict[str, int]:
+    raw = load_json(SEARCH_STATS_PATH, {})
+    return _coerce_stats_dict(raw)
+
+
+def _write_search_stats_file(payload: Dict[str, int]) -> None:
+    save_json(SEARCH_STATS_PATH, payload)
+
+
+def init_search_stats_memory() -> None:
+    global _search_stats_mem
+    loaded = _read_search_stats_file()
+    with _search_stats_lock:
+        _search_stats_mem = loaded
+
+
 app = Flask(__name__)
 
 # ---------- Load model & data on startup ---------- #
@@ -167,6 +202,8 @@ available_ojs = sorted({p.get("source") for p in probs if p.get("source")})
 assert len(probs) == embs.shape[0], "Mismatch between vector and problem count!"
 print(f"Ready! {len(probs)} problems indexed.\n")
 
+init_search_stats_memory()
+
 
 @lru_cache(maxsize=SEARCH_CACHE_SIZE)
 def search_once(q: str) -> Tuple[List[int], List[float]]:
@@ -179,22 +216,17 @@ def search_once(q: str) -> Tuple[List[int], List[float]]:
 
 
 def load_search_stats() -> Dict[str, int]:
-    """Load daily search statistics from file."""
-    stats = load_json(SEARCH_STATS_PATH, {})
-    return stats if isinstance(stats, dict) else {}
-
-
-def save_search_stats(stats: Dict[str, int]) -> None:
-    """Save search statistics to file."""
-    save_json(SEARCH_STATS_PATH, stats)
+    """Daily search statistics from in-memory cache (copy)."""
+    with _search_stats_lock:
+        return dict(_search_stats_mem)
 
 
 def record_search() -> None:
-    """Update today's search count and save to file."""
-    stats = load_search_stats()
+    """Increment today's count in memory and persist (threading.Lock + save_json)."""
     today = datetime.now().strftime("%Y-%m-%d")
-    stats[today] = stats.get(today, 0) + 1
-    save_search_stats(stats)
+    with _search_stats_lock:
+        _search_stats_mem[today] = _search_stats_mem.get(today, 0) + 1
+        _write_search_stats_file(dict(_search_stats_mem))
 
 
 def load_search_time_stats() -> List[Dict[str, Any]]:
