@@ -99,6 +99,8 @@ PAGE_SIZE = 20
 MAX_QUERY_TOKENS = 2048
 SEARCH_CACHE_SIZE = 1024
 MAX_TIMING_SAMPLES = 5000
+# Ignore sub-millisecond timings (LRU cache hits) when fitting ETA.
+MIN_TIMING_RECORD_MS = 50.0
 # ------------------------------------- #
 
 
@@ -269,7 +271,7 @@ def fit_eta_model(samples: Sequence[Dict[str, Any]]) -> Optional[Dict[str, float
             y = float(s.get("elapsed_ms", 0.0))
         except (TypeError, ValueError):
             continue
-        if x > 0 and y > 0:
+        if x > 0 and y >= MIN_TIMING_RECORD_MS:
             valid.append((x, y))
 
     if len(valid) <= 1:
@@ -322,10 +324,62 @@ def get_query_token_count(q: str) -> int:
     return len(input_ids)
 
 
-def get_selected_ojs() -> List[str]:
-    if "oj" in request.args:
-        return request.args.getlist("oj")
+def get_selected_ojs_from_args(args: Any) -> List[str]:
+    if "oj" in args:
+        return args.getlist("oj")
     return available_ojs
+
+
+def execute_search(
+    q: str,
+    page: int,
+    selected_ojs: List[str],
+    title_fallback: str,
+) -> Dict[str, Any]:
+    """Run retrieval and return result payload for templates / API."""
+    results: List[Dict[str, Any]] = []
+    total = 0
+    elapsed = 0.0
+    query_token_count = 0
+    estimated_ms: Optional[float] = None
+
+    if not q:
+        return {
+            "results": results,
+            "total": total,
+            "elapsed": elapsed,
+            "query_token_count": query_token_count,
+            "estimated_ms": estimated_ms,
+            "max_page": 1,
+        }
+
+    time_samples = load_search_time_stats()
+    eta_model = fit_eta_model(time_samples)
+    query_token_count = get_query_token_count(q)
+    estimated_ms = estimate_elapsed_ms(query_token_count, eta_model)
+
+    record_search()
+    cache_hits_before = search_once.cache_info().hits
+    tic = time.perf_counter()
+    idx, sims = search_once(q)
+    elapsed = (time.perf_counter() - tic) * 1_000
+    cache_hit = search_once.cache_info().hits > cache_hits_before
+    if not cache_hit and elapsed >= MIN_TIMING_RECORD_MS:
+        record_search_timing(query_token_count, elapsed)
+
+    filtered_idx = filter_indices_by_oj(idx, selected_ojs)
+    total = len(filtered_idx)
+    results = build_results_page(filtered_idx, sims, page, title_fallback)
+    max_page = max(1, math.ceil(total / PAGE_SIZE))
+
+    return {
+        "results": results,
+        "total": total,
+        "elapsed": elapsed,
+        "query_token_count": query_token_count,
+        "estimated_ms": estimated_ms,
+        "max_page": max_page,
+    }
 
 
 def filter_indices_by_oj(indices: Sequence[int], selected_ojs: Sequence[str]) -> List[int]:
@@ -366,45 +420,56 @@ def index() -> str:
 
     q = request.args.get("q", "").strip()
     page = parse_page(request.args.get("page", "1"))
-    selected_ojs = get_selected_ojs()
+    selected_ojs = get_selected_ojs_from_args(request.args)
 
-    results, total, elapsed = [], 0, 0.0
-    query_token_count = 0
-    estimated_ms = None
-    time_samples = load_search_time_stats()
-    eta_model = fit_eta_model(time_samples)
-
-    if q:
-        query_token_count = get_query_token_count(q)
-        estimated_ms = estimate_elapsed_ms(query_token_count, eta_model)
-        record_search()
-        tic   = time.perf_counter()
-        idx, sims = search_once(q)
-        elapsed = (time.perf_counter() - tic) * 1_000
-        record_search_timing(query_token_count, elapsed)
-
-        filtered_idx = filter_indices_by_oj(idx, selected_ojs)
-        total = len(filtered_idx)
-        results = build_results_page(filtered_idx, sims, page, t["untitled"])
+    payload = execute_search(q, page, selected_ojs, t["untitled"])
 
     return render_template(
         "index.html",
         lang=lang,
         t=t,
         query=q,
-        results=results,
         page=page,
         page_size=PAGE_SIZE,
-        total=total,
-        max_page=max(1, math.ceil(total / PAGE_SIZE)),
-        elapsed=elapsed,
-        query_token_count=query_token_count,
-        estimated_ms=estimated_ms,
-        estimator_a=(eta_model["a"] if eta_model else 0.0),
-        estimator_b=(eta_model["b"] if eta_model else 0.0),
-        estimator_ready=(1 if eta_model else 0),
-        available_ojs=available_ojs,
         selected_ojs=selected_ojs,
+        available_ojs=available_ojs,
+        **payload,
+    )
+
+
+@app.route("/api/search", methods=["GET"])
+def api_search():
+    """JSON API for in-page search (avoids full reload; progress UI stays alive)."""
+    lang = detect_lang()
+    t = I18N[lang]
+
+    q = request.args.get("q", "").strip()
+    if not q:
+        return jsonify({"error": "empty_query"}), 400
+
+    page = parse_page(request.args.get("page", "1"))
+    selected_ojs = get_selected_ojs_from_args(request.args)
+    payload = execute_search(q, page, selected_ojs, t["untitled"])
+
+    html = render_template(
+        "_search_results.html",
+        lang=lang,
+        t=t,
+        query=q,
+        page=page,
+        selected_ojs=selected_ojs,
+        **payload,
+    )
+    return jsonify(
+        {
+            "html": html,
+            "elapsed": payload["elapsed"],
+            "query_token_count": payload["query_token_count"],
+            "estimated_ms": payload["estimated_ms"],
+            "total": payload["total"],
+            "page": page,
+            "max_page": payload["max_page"],
+        }
     )
 
 

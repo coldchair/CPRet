@@ -53,152 +53,167 @@
   <a class="btn btn-link btn-sm ms-2" href="{{ url_for('stats', lang=lang) }}">{{ t.view_stats }}</a>
 </form>
 
-<div id="search-progress-wrapper"
-     class="mt-3 {% if not query %}d-none{% endif %}"
-     data-estimator-a="{{ estimator_a }}"
-     data-estimator-b="{{ estimator_b }}"
-     data-estimator-ready="{{ estimator_ready }}">
+<div id="search-progress-wrapper" class="mt-3 d-none" aria-live="polite">
   <div class="d-flex justify-content-between align-items-center mb-1">
     <small class="text-success fw-semibold">{{ t.search_progress }}</small>
-    <small id="search-token-count" class="text-muted">
-      {{ t.token_count_label }}: {% if query %}{{ query_token_count }}{% else %}--{% endif %}
-    </small>
+    <small id="search-token-count" class="text-muted">{{ t.token_count_label }}: --</small>
   </div>
   <div class="progress" style="height: 0.75rem;">
     <div id="search-progress-bar"
-         class="progress-bar bg-success {% if not query %}progress-bar-striped progress-bar-animated{% endif %}"
+         class="progress-bar bg-success progress-bar-striped progress-bar-animated w-100"
          role="progressbar"
-         style="width: {% if query %}100{% else %}0{% endif %}%"
+         aria-busy="true"
          aria-valuemin="0"
-         aria-valuemax="100"
-         aria-valuenow="{% if query %}100{% else %}0{% endif %}">
+         aria-valuemax="100">
     </div>
   </div>
   <div class="small text-muted mt-2">
-    {{ t.elapsed_time }}:
-    <span id="search-elapsed-seconds">{% if query %}{{ "%.2f"|format(elapsed / 1000) }}{% else %}0.00{% endif %}</span>s
-    |
-    {{ t.estimated_time }}:
-    <span id="search-estimated-seconds">{% if estimated_ms is not none %}{{ "%.2f"|format(estimated_ms / 1000) }}{% else %}--{% endif %}</span>s
+    {{ t.elapsed_time }}: <span id="search-elapsed-seconds">0.00</span>s
+    | {{ t.estimated_time }}: <span id="search-estimated-seconds">--</span>s
   </div>
 </div>
 
-{% if results %}
-<hr>
-<p class="text-muted"
-   >{{ t.summary.format(total=total, page=page, max_page=max_page, elapsed=elapsed) | safe }}
-  </p>
-
-<ul class="list-group">
-  {% for r in results %}
-<li class="list-group-item">
-  <div class="d-flex justify-content-between">
-    <div>
-      <span class="badge bg-secondary me-2">#{{ r.rank }}</span>
-      {# 👉 主标题 = 原题链接 #}
-      <a href="{{ r.url }}" target="_blank">{{ r.title }}</a>
-      {# 🔍 小图标 = 站内详情页 #}
-      <a href="{{ url_for('problem', pid=r.pid, lang=lang, q=query, page=page) }}"
-         class="ms-2 text-decoration-none" title="查看题面">
-        📄
-      </a>
-
-      <small class="text-muted ms-2">{{ r.source }}</small>
-    </div>
-    <span class="score-badge text-muted">{{ "%.4f"|format(r.score) }}</span>
-  </div>
-</li>
-{% endfor %}
-
-</ul>
-
-<nav class="mt-4">
-  {% if max_page > 1 %}
-  <ul class="pagination justify-content-center">
-
-    {# ← Prev #}
-    <li class="page-item {% if page==1 %}disabled{% endif %}">
-      <a class="page-link"
-         href="{{ url_for('index', q=query, lang=lang, page=page-1) }}">&laquo; {{ t.prev }}</a>
-    </li>
-
-    {# 中间数字，当前页±2；首尾要保留 #}
-    {% set window = 2 %}
-    {% for p in range(1, max_page+1) %}
-      {% if p==1 or p==max_page or (p>=page-window and p<=page+window) %}
-        <li class="page-item {% if p==page %}active{% endif %}">
-          <a class="page-link"
-             href="{{ url_for('index', q=query, lang=lang, page=p) }}">{{ p }}</a>
-        </li>
-      {% elif p==2 and page-window>3 %}
-        <li class="page-item disabled"><span class="page-link">…</span></li>
-      {% elif p==max_page-1 and page+window<max_page-2 %}
-        <li class="page-item disabled"><span class="page-link">…</span></li>
-      {% endif %}
-    {% endfor %}
-
-    {# Next → #}
-    <li class="page-item {% if page==max_page %}disabled{% endif %}">
-      <a class="page-link"
-         href="{{ url_for('index', q=query, lang=lang, page=page+1) }}">{{ t.next }} &raquo;</a>
-    </li>
-
-  </ul>
+<div id="search-results">
+  {% if query %}
+  {% include "_search_results.html" %}
   {% endif %}
-</nav>
-
-{% endif %}
+</div>
 
 <script>
-  let searchProgressTimer = null;
+  const SEARCH_API_URL = "{{ url_for('api_search') }}";
+  const INDEX_URL = "{{ url_for('index') }}";
+  const TOKEN_LABEL = "{{ t.token_count_label }}";
 
-  function estimateTokenCountFromText(text) {
-    const normalized = (text || "").trim();
-    if (!normalized) return 0;
-    const cjkChars = (normalized.match(/[\u4E00-\u9FFF]/g) || []).length;
-    const words = (normalized.match(/[A-Za-z0-9_]+/g) || []).length;
-    const punctuation = (normalized.match(/[^\sA-Za-z0-9_\u4E00-\u9FFF]/g) || []).length;
-    return cjkChars + words + Math.ceil(punctuation * 0.35);
+  let searchElapsedTimer = null;
+  let searchLoading = false;
+
+  function buildSearchParams(page) {
+    const form = document.getElementById("search-form");
+    const params = new URLSearchParams(new FormData(form));
+    params.set("page", String(page));
+    return params;
   }
 
-  function startSearchProgressUI(tokenCountHint, estimatedMsHint) {
+  function syncBrowserUrl(params) {
+    const url = INDEX_URL + (params.toString() ? "?" + params.toString() : "");
+    history.pushState(null, "", url);
+  }
+
+  function formatSeconds(ms) {
+    if (ms === null || ms === undefined || Number.isNaN(ms)) return "--";
+    return (ms / 1000).toFixed(2);
+  }
+
+  function setSearchSubmitDisabled(disabled) {
+    const btn = document.querySelector("#search-form button[type='submit']");
+    if (btn) btn.disabled = disabled;
+  }
+
+  function showSearchLoading() {
+    const wrapper = document.getElementById("search-progress-wrapper");
+    const bar = document.getElementById("search-progress-bar");
+    const elapsedNode = document.getElementById("search-elapsed-seconds");
+    const estimatedNode = document.getElementById("search-estimated-seconds");
+    if (!wrapper || !bar || !elapsedNode || !estimatedNode) return;
+
+    wrapper.classList.remove("d-none");
+    bar.className = "progress-bar bg-success progress-bar-striped progress-bar-animated w-100";
+    bar.setAttribute("aria-busy", "true");
+    bar.removeAttribute("aria-valuenow");
+    elapsedNode.textContent = "0.00";
+    estimatedNode.textContent = "--";
+
+    const begin = Date.now();
+    if (searchElapsedTimer) clearInterval(searchElapsedTimer);
+    searchElapsedTimer = setInterval(() => {
+      elapsedNode.textContent = ((Date.now() - begin) / 1000).toFixed(2);
+    }, 100);
+  }
+
+  function finishSearchLoading(meta) {
     const wrapper = document.getElementById("search-progress-wrapper");
     const bar = document.getElementById("search-progress-bar");
     const elapsedNode = document.getElementById("search-elapsed-seconds");
     const estimatedNode = document.getElementById("search-estimated-seconds");
     const tokenNode = document.getElementById("search-token-count");
-    const query = document.getElementById("query-box").value || "";
-    if (!wrapper || !bar || !elapsedNode || !estimatedNode || !tokenNode || !query.trim()) return;
+    if (searchElapsedTimer) {
+      clearInterval(searchElapsedTimer);
+      searchElapsedTimer = null;
+    }
+    if (!wrapper || !bar || !elapsedNode || !estimatedNode) return;
 
-    wrapper.classList.remove("d-none");
-    bar.classList.add("progress-bar-striped", "progress-bar-animated");
+    bar.className = "progress-bar bg-success w-100";
+    bar.setAttribute("aria-busy", "false");
+    bar.setAttribute("aria-valuenow", "100");
 
-    const tokenCount = Number.isFinite(tokenCountHint) ? tokenCountHint : estimateTokenCountFromText(query);
-    tokenNode.textContent = "{{ t.token_count_label }}: " + tokenCount;
-
-    const ready = wrapper.dataset.estimatorReady === "1";
-    const a = parseFloat(wrapper.dataset.estimatorA || "0");
-    const b = parseFloat(wrapper.dataset.estimatorB || "0");
-    const estimatedMs =
-      Number.isFinite(estimatedMsHint) && estimatedMsHint >= 0
-        ? estimatedMsHint
-        : (ready ? Math.max(0, a * tokenCount + b) : null);
-    estimatedNode.textContent = estimatedMs !== null ? (estimatedMs / 1000).toFixed(2) : "--";
-
-    const begin = Date.now();
-    if (searchProgressTimer) clearInterval(searchProgressTimer);
-    searchProgressTimer = setInterval(() => {
-      const elapsedMs = Date.now() - begin;
-      elapsedNode.textContent = (elapsedMs / 1000).toFixed(2);
-      let ratio = 0;
-      if (estimatedMs && estimatedMs > 0) {
-        ratio = Math.min(95, (elapsedMs / estimatedMs) * 100);
-      } else {
-        ratio = Math.min(90, elapsedMs / 80);
+    if (meta) {
+      elapsedNode.textContent = formatSeconds(meta.elapsed);
+      estimatedNode.textContent = formatSeconds(meta.estimated_ms);
+      if (tokenNode && meta.query_token_count !== undefined) {
+        tokenNode.textContent = TOKEN_LABEL + ": " + meta.query_token_count;
       }
-      bar.style.width = ratio.toFixed(1) + "%";
-      bar.setAttribute("aria-valuenow", ratio.toFixed(1));
-    }, 120);
+    }
+  }
+
+  function hideSearchProgress() {
+    const wrapper = document.getElementById("search-progress-wrapper");
+    if (searchElapsedTimer) {
+      clearInterval(searchElapsedTimer);
+      searchElapsedTimer = null;
+    }
+    if (wrapper) wrapper.classList.add("d-none");
+  }
+
+  async function prefetchEta(query) {
+    try {
+      const resp = await fetch("{{ url_for('estimate_eta') }}", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ q: query }),
+      });
+      if (!resp.ok) return;
+      const data = await resp.json();
+      const tokenNode = document.getElementById("search-token-count");
+      const estimatedNode = document.getElementById("search-estimated-seconds");
+      if (tokenNode && data.token_count !== undefined) {
+        tokenNode.textContent = TOKEN_LABEL + ": " + data.token_count;
+      }
+      if (estimatedNode) {
+        estimatedNode.textContent = formatSeconds(data.estimated_ms);
+      }
+    } catch (_) {
+      /* optional hint only */
+    }
+  }
+
+  async function runSearch(page) {
+    const query = (document.getElementById("query-box").value || "").trim();
+    if (!query || searchLoading) return;
+
+    const params = buildSearchParams(page);
+    searchLoading = true;
+    setSearchSubmitDisabled(true);
+    showSearchLoading();
+    prefetchEta(query);
+
+    try {
+      const resp = await fetch(SEARCH_API_URL + "?" + params.toString(), {
+        headers: { "Accept": "application/json" },
+      });
+      if (!resp.ok) throw new Error("search failed");
+      const data = await resp.json();
+      const resultsRoot = document.getElementById("search-results");
+      if (resultsRoot) resultsRoot.innerHTML = data.html || "";
+      finishSearchLoading(data);
+      syncBrowserUrl(params);
+    } catch (_) {
+      hideSearchProgress();
+      window.location.href = INDEX_URL + "?" + params.toString();
+      return;
+    } finally {
+      searchLoading = false;
+      setSearchSubmitDisabled(false);
+    }
   }
 
   function fillTemplate() {
@@ -224,23 +239,36 @@
 
   document.addEventListener("DOMContentLoaded", function () {
     const form = document.getElementById("search-form");
-    const bar = document.getElementById("search-progress-bar");
+    const resultsRoot = document.getElementById("search-results");
+
     if (form) {
-      form.addEventListener("submit", function () {
-        const query = (document.getElementById("query-box").value || "").trim();
-        if (!query) {
-          return;
-        }
-        startSearchProgressUI();
+      form.addEventListener("submit", function (e) {
+        e.preventDefault();
+        runSearch(1);
       });
     }
-    if ("{{ query|e }}".trim()) {
-      if (bar) {
-        bar.classList.remove("progress-bar-striped", "progress-bar-animated");
-        bar.style.width = "100%";
-        bar.setAttribute("aria-valuenow", "100");
-      }
+
+    if (resultsRoot) {
+      resultsRoot.addEventListener("click", function (e) {
+        const link = e.target.closest("a.page-link[data-page]");
+        if (!link) return;
+        const item = link.closest(".page-item");
+        if (item && item.classList.contains("disabled")) return;
+        e.preventDefault();
+        const page = parseInt(link.dataset.page, 10);
+        if (!Number.isFinite(page) || page < 1) return;
+        runSearch(page);
+      });
     }
+
+    {% if query %}
+    finishSearchLoading({
+      elapsed: {{ elapsed }},
+      estimated_ms: {{ estimated_ms if estimated_ms is not none else "null" }},
+      query_token_count: {{ query_token_count }},
+    });
+    document.getElementById("search-progress-wrapper")?.classList.remove("d-none");
+    {% endif %}
   });
 </script>
 

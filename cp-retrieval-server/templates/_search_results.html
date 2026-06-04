@@ -1,0 +1,48 @@
+{% if results %}
+<hr>
+<p class="text-muted">{{ t.summary.format(total=total, page=page, max_page=max_page, elapsed=elapsed) | safe }}</p>
+
+<ul class="list-group">
+  {% for r in results %}
+  <li class="list-group-item">
+    <div class="d-flex justify-content-between">
+      <div>
+        <span class="badge bg-secondary me-2">#{{ r.rank }}</span>
+        <a href="{{ r.url }}" target="_blank">{{ r.title }}</a>
+        <a href="{{ url_for('problem', pid=r.pid, lang=lang, q=query, page=page) }}"
+           class="ms-2 text-decoration-none" title="查看题面">📄</a>
+        <small class="text-muted ms-2">{{ r.source }}</small>
+      </div>
+      <span class="score-badge text-muted">{{ "%.4f"|format(r.score) }}</span>
+    </div>
+  </li>
+  {% endfor %}
+</ul>
+
+<nav class="mt-4">
+  {% if max_page > 1 %}
+  <ul class="pagination justify-content-center">
+    <li class="page-item {% if page==1 %}disabled{% endif %}">
+      <a class="page-link" href="#" data-page="{{ page - 1 }}">&laquo; {{ t.prev }}</a>
+    </li>
+
+    {% set window = 2 %}
+    {% for p in range(1, max_page+1) %}
+      {% if p==1 or p==max_page or (p>=page-window and p<=page+window) %}
+        <li class="page-item {% if p==page %}active{% endif %}">
+          <a class="page-link" href="#" data-page="{{ p }}">{{ p }}</a>
+        </li>
+      {% elif p==2 and page-window>3 %}
+        <li class="page-item disabled"><span class="page-link">…</span></li>
+      {% elif p==max_page-1 and page+window<max_page-2 %}
+        <li class="page-item disabled"><span class="page-link">…</span></li>
+      {% endif %}
+    {% endfor %}
+
+    <li class="page-item {% if page==max_page %}disabled{% endif %}">
+      <a class="page-link" href="#" data-page="{{ page + 1 }}">{{ t.next }} &raquo;</a>
+    </li>
+  </ul>
+  {% endif %}
+</nav>
+{% endif %}
