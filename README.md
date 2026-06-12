@@ -108,8 +108,8 @@ export HF_ENDPOINT=https://hf-mirror.com
 
     * **If you are using the new model, `CPRetriever-Prob-Qwen3-4B-2510`:**
         * Please download the following files from [HF dataset CPRet-Embeddings](https://huggingface.co/datasets/coldchair16/CPRet-Embeddings) into the `cp-retrieval-server/` directory:
-            * `probs_2605.jsonl`
-            * `probs_2605_embs.npy`
+            * `probs_2606.jsonl`
+            * `probs_2606_embs.npy`
 
     * **If you are using the old model, `CPRetriever-Prob`:**
         * Please download the following files from [HF dataset CPRet-Embeddings](https://huggingface.co/datasets/coldchair16/CPRet-Embeddings) into the `cp-retrieval-server/` directory:
@@ -146,7 +146,7 @@ export HF_ENDPOINT=https://hf-mirror.com
 
 3. **About the Dataset:**
 
-   The current retrieval problem database (as of Mar 2026) includes problems from the following online judges:
+   The current retrieval problem database (as of June 2026) includes problems from the following online judges:
 
    * [Codeforces](https://codeforces.com/)
    * [Codeforces Gym](https://codeforces.com/gyms)
