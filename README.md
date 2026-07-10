@@ -146,7 +146,7 @@ export HF_ENDPOINT=https://hf-mirror.com
 
 3. **About the Dataset:**
 
-   The current retrieval problem database (as of June 2026) includes problems from the following online judges:
+   The current retrieval problem database (as of July 2026) includes problems from the following online judges:
 
    * [Codeforces](https://codeforces.com/)
    * [Codeforces Gym](https://codeforces.com/gyms)
@@ -160,8 +160,9 @@ export HF_ENDPOINT=https://hf-mirror.com
    * [AIZU](https://judge.u-aizu.ac.jp/onlinejudge/)
    * [UOJ](https://uoj.ac/)
    * [QOJ](https://qoj.ac/)
+   * [Hydro](https://hydro.ac/)
 
-   The data is collected up to **Mar 2026**.
+   The data is collected up to **July 2026**.
    You can add your own data source and generate embeddings using [`compute_embs.py`](cp-retrieval-server/compute_embs.py). Running this process for the current database on a H100 GPU takes approximately 4 GPU hours.
 
    If you have access to a larger or more diverse problem dataset, **we welcome contributions and are happy to update the collection** — feel free to contact us (2317757009@qq.com) or open an issue/pull request.
