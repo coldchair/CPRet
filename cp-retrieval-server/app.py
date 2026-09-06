@@ -22,7 +22,7 @@ I18N = {
         "new_domain_info": "最新域名 <a href='https://cpret.online' target='_blank' class='alert-link'>cpret.online</a> · <a href='https://github.com/coldchair/CPRet' target='_blank' class='alert-link'>GitHub</a> · 题目库 <a href='https://huggingface.co/datasets/coldchair16/CPRet-Embeddings' target='_blank' class='alert-link'>Hugging Face 下载</a>",
         "paper_info": "📰 2025 年 9 月更新：🎉 恭喜！我们的项目论文 <a href='https://neurips.cc/virtual/2025/poster/121814' target='_blank'>CPRet</a> 被 NeurIPS 2025 D&B track 接收！",
         "info": "📢 2025 年 7 月更新：我们已升级模型并同步更新了题目数据库，检索效果更佳！",
-        "info2": "📢 2026 年 7 月更新：已更新题目库。",
+        "info2": "📢 2026 年 9 月更新：已更新题目库。",
         "placeholder": "输入题目描述或简略题意（超过 2048 token 的查询将被截断）…",
         "template_btn": "填入示例查询",
         "search_btn": "搜索",
@@ -51,7 +51,7 @@ I18N = {
         "new_domain_info": "Domain <a href='https://cpret.online' target='_blank' class='alert-link'>cpret.online</a> · <a href='https://github.com/coldchair/CPRet' target='_blank' class='alert-link'>GitHub</a> · dataset <a href='https://huggingface.co/datasets/coldchair16/CPRet-Embeddings' target='_blank' class='alert-link'>Hugging Face</a>",
         "paper_info": "📰 September 2025 Update: 🎉 Congrats! Our project paper <a href='https://neurips.cc/virtual/2025/poster/121814' target='_blank'>CPRet</a> has been accepted by the NeurIPS 2025 D&B track!",
         "info": "📢 July 2025 Update: We've upgraded our model and synchronized the problem database for better retrieval!",
-        "info2": "📢 July 2026 Update: Problem database refreshed.",
+        "info2": "📢 September 2026 Update: Problem database refreshed.",
         "placeholder": "Enter problem description or simplified statement (queries longer than 2048 tokens will be truncated)…",
         "template_btn": "Insert example query",
         "search_btn": "Search",
@@ -92,8 +92,8 @@ _APP_DIR = os.path.dirname(os.path.abspath(__file__))
 SEARCH_STATS_PATH = os.path.join(_APP_DIR, "search_stats.json")
 SEARCH_TIME_STATS_PATH = os.path.join(_APP_DIR, "search_time_stats.json")
 MODEL_PATH = os.getenv("MODEL_PATH", "coldchair16/CPRetriever-Prob-Qwen3-4B-2510")
-EMB_PATH = os.getenv("EMB_PATH", "./probs_2607_embs.npy")
-PROB_PATH = os.getenv("PROB_PATH", "./probs_2607.jsonl")
+EMB_PATH = os.getenv("EMB_PATH", "./probs_2609_embs.npy")
+PROB_PATH = os.getenv("PROB_PATH", "./probs_2609.jsonl")
 
 PAGE_SIZE = 20
 MAX_QUERY_TOKENS = 2048
