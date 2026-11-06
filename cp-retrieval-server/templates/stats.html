@@ -1,148 +1,78 @@
-<!DOCTYPE html>
-<html lang="{{ lang }}">
-<head>
-    <meta charset="UTF-8">
-    <title>{{ t.site_name }} - {{ t.view_stats }}</title>
-    <!-- 引入 Plotly -->
-    <script src="https://cdn.plot.ly/plotly-2.30.0.min.js"></script>
-    <style>
-        body {
-            font-family: sans-serif;
-            text-align: center;
-            padding: 20px;
-        }
-        #chart {
-            width: 90%;
-            max-width: 900px;
-            margin: 0 auto;
-        }
-        table {
-            margin: 20px auto;
-            border-collapse: collapse;
-            font-size: 14px;
-        }
-        th, td {
-            border: 1px solid #ddd;
-            padding: 6px 10px;
-        }
-        th {
-            background-color: #f8f8f8;
-        }
-    </style>
-</head>
-<body>
-    <h1>{{ t.site_name }} - {{ t.view_stats }}</h1>
+{% extends "base.html" %}
+{% block title %}{{ t.site_name }} - {{ t.view_stats }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>{{ t.view_stats }}</h1>
+  <p>{{ t.site_name }}</p>
+</div>
 
-    <!-- Plotly 图表容器 -->
-    <div id="chart"></div>
+<section class="kpis">
+  <div class="kpi glass primary">
+    <div class="k-label">{{ t.total_search_count or "总搜索次数" }}</div>
+    <div class="k-value">{{ "{:,}".format(total) }}</div>
+  </div>
+  <div class="kpi glass">
+    <div class="k-label">{{ t.recent7 }}</div>
+    <div class="k-value">{{ "{:,.1f}".format(avg7) }}</div>
+  </div>
+  <div class="kpi glass">
+    <div class="k-label">{{ t.recent30 }}</div>
+    <div class="k-value">{{ "{:,.1f}".format(avg30) }}</div>
+  </div>
+  <div class="kpi glass">
+    <div class="k-label">{{ t.days_tracked }}</div>
+    <div class="k-value">{{ days }}</div>
+  </div>
+</section>
 
-    <!-- 可选：保留原表格（含总数行） -->
-    <div style="max-height: 300px; overflow-y: auto; margin: 0 auto; width: fit-content;">
-        <table>
-            <!-- 总数行 -->
-            <tr style="background-color:#eef5ff; font-weight:bold;">
-                <td colspan="2">
-                    {{ t.total_search_count or "总搜索次数" }}：
-                    {{ stats | map(attribute=1) | sum }}
-                </td>
-            </tr>
-            <!-- 表头 -->
-            <tr>
-                <th>{{ t.date }}</th>
-                <th>{{ t.search_count }}</th>
-            </tr>
-            <!-- 数据行 -->
-            {% for date, count in stats %}
-            <tr>
-                <td>{{ date }}</td>
-                <td>{{ count }}</td>
-            </tr>
-            {% endfor %}
-        </table>
+<section class="chart-card glass">
+  <div class="chart-head">
+    <h2 class="section-title">📈 {{ t.search_count }}</h2>
+    <div class="legend">
+      <span><i class="l-count"></i>{{ t.search_count }}</span>
+      <span><i class="l-ema"></i>{{ t.moving_average or "渐近平均" }}</span>
     </div>
+    <div class="seg" id="range-seg" role="group">
+      <button type="button" data-range="30">30d</button>
+      <button type="button" data-range="90">90d</button>
+      <button type="button" data-range="365">1y</button>
+      <button type="button" data-range="0" class="active">All</button>
+    </div>
+  </div>
+  <div class="chart-box" id="chart">
+    <div class="tooltip" id="chart-tip" role="tooltip"></div>
+  </div>
+  <p class="chart-note">{{ t.chart_note }}</p>
+</section>
 
-    <p><a href="{{ url_for('index', lang=lang) }}">{{ t.back }}</a></p>
+<details class="stats-table-wrap glass">
+  <summary>🗓️ {{ t.stats_table }}</summary>
+  <div class="table-scroll">
+    <table class="data-table">
+      <thead>
+        <tr><th>{{ t.date }}</th><th>{{ t.search_count }}</th></tr>
+      </thead>
+      <tbody>
+        <tr class="total-row">
+          <td>{{ t.total_search_count or "总搜索次数" }}</td>
+          <td>{{ stats | map(attribute=1) | sum }}</td>
+        </tr>
+        {% for date, count in stats %}
+        <tr><td>{{ date }}</td><td>{{ count }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</details>
 
-   <script>
-        // 从 Flask 模板中获取数据
-        const dates = {{ stats_draw | map(attribute=0) | list | tojson }};
-        const counts = {{ stats_draw | map(attribute=1) | list | tojson }};
+<p style="margin-top:18px"><a class="crumb" href="{{ url_for('index', lang=lang) }}">← {{ t.back }}</a></p>
 
-        // ======== 新增：计算滑动平均（类似 TensorBoard 平滑） ========
-        function smooth(data, weight = 0.9) {
-            // weight 越大越平滑 (0~1)
-            let last = data[0];
-            const smoothed = [last];
-            for (let i = 1; i < data.length; i++) {
-                const sm = last * weight + data[i] * (1 - weight);
-                smoothed.push(sm);
-                last = sm;
-            }
-            return smoothed;
-        }
+<script type="application/json" id="stats-data">{{ {
+  "dates": stats_draw | map(attribute=0) | list,
+  "counts": stats_draw | map(attribute=1) | list
+} | tojson }}</script>
+{% endblock %}
 
-        const smoothCounts = smooth(counts, 0.85); // 可调平滑系数
-
-        // ======== 原始曲线 ========
-        const trace = {
-            x: dates,
-            y: counts,
-            type: 'scatter',
-            mode: 'lines+markers',
-            line: {
-                color: '#1f77b4',
-                width: 3
-            },
-            marker: {
-                size: 6
-            },
-            fill: 'tozeroy',
-            fillcolor: 'rgba(31, 119, 180, 0.2)',
-            name: '{{ t.search_count }}'
-        };
-
-        // ======== 新增：渐近平均曲线 ========
-        const avgTrace = {
-            x: dates,
-            y: smoothCounts,
-            type: 'scatter',
-            mode: 'lines',
-            line: {
-                color: 'rgba(255, 99, 71, 0.9)',  // 红橙色线
-                width: 3,
-                dash: 'dot'                      // 虚线样式
-            },
-            name: '{{ t.moving_average or "渐近平均" }}'
-        };
-
-        // ======== Plotly 布局 ========
-        const layout = {
-            title: '{{ t.view_stats }}',
-            xaxis: {
-                title: '{{ t.date }}',
-                tickangle: -45
-            },
-            yaxis: {
-                title: '{{ t.search_count }}',
-                rangemode: 'tozero'
-            },
-            margin: { t: 50, l: 60, r: 20, b: 100 },
-            hovermode: 'x unified',
-            plot_bgcolor: 'rgba(0,0,0,0)',
-            paper_bgcolor: 'rgba(0,0,0,0)',
-            font: { size: 14 },
-            legend: { orientation: 'h', y: -0.2 }
-        };
-
-        const config = {
-            responsive: true,
-            displayModeBar: true,
-            displaylogo: false
-        };
-
-        // ======== 绘制图表 ========
-        Plotly.newPlot('chart', [trace, avgTrace], layout, config);
-    </script>
-
-</body>
-</html>
+{% block scripts %}
+<script src="{{ static_v('js/stats.js') }}" defer></script>
+{% endblock %}

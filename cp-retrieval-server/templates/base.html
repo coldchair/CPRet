@@ -2,38 +2,59 @@
 <html lang="{{ lang }}">
   <head>
     <meta charset="utf-8">
-    <title>{{ t.site_name }}</title>
+    <title>{% block title %}{{ t.site_name }}{% endblock %}</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-      body { padding-top: 4rem; display: flex; flex-direction: column; min-height: 100vh; }
-      .score-badge{font-family:monospace}
-      .site-footer { margin-top: auto; padding: 1rem 0; color: #6c757d; font-size: 0.875rem; text-align: center; border-top: 1px solid #e9ecef; }
-      .site-footer a { color: #6c757d; text-decoration: none; }
-      .site-footer a:hover { text-decoration: underline; }
-    </style>
+    <meta name="color-scheme" content="light dark">
+    <meta name="theme-color" content="#164173">
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%23164173'/%3E%3Cstop offset='1' stop-color='%230a2240'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='32' height='32' rx='8' fill='url(%23g)'/%3E%3Ctext x='16' y='21' font-size='12' font-family='Arial' font-weight='700' fill='%23fdbc1e' text-anchor='middle'%3ECP%3C/text%3E%3C/svg%3E">
+    <link rel="stylesheet" href="{{ static_v('css/app.css') }}">
+    {% block head_extra %}{% endblock %}
   </head>
   <body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
-      <div class="container-fluid">
-        <a class="navbar-brand" href="{{ url_for('index', lang=lang) }}">{{ t.site_name }}</a>
-        <!-- 右侧语言切换 -->
-        <div class="ms-auto">
-          <a class="btn btn-sm btn-outline-light me-2 {% if lang=='zh' %}disabled{% endif %}"
-             href="{{ url_for('index', lang='zh', q=query) }}">中文</a>
-          <a class="btn btn-sm btn-outline-light {% if lang=='en' %}disabled{% endif %}"
-             href="{{ url_for('index', lang='en', q=query) }}">EN</a>
-        </div>
+    <div class="bg-decor" aria-hidden="true"></div>
+
+    <header class="topbar">
+      <div class="container topbar-inner">
+        <a class="brand" href="{{ url_for('index', lang=lang) }}">
+          <span class="brand-mark" aria-hidden="true"><span class="bl"></span><span class="bl"></span><span class="bl"></span></span>
+          <span class="brand-name">CP<b>Ret</b></span>
+          <span class="brand-text">{{ t.site_name.split('：')[-1].split(': ')[-1] }}</span>
+        </a>
+        <nav class="topnav">
+          <a class="nav-link {% if request.endpoint == 'stats' %}active{% endif %}" href="{{ url_for('stats', lang=lang) }}">
+            {% set _vs = t.view_stats.split(' ', 1) %}<span>{{ _vs[0] }}</span> <span class="nav-text">{{ _vs[1] }}</span>
+          </a>
+          <a class="gh-pill" href="https://github.com/coldchair/CPRet" target="_blank" rel="noopener noreferrer" title="GitHub: coldchair/CPRet">
+            <svg height="16" width="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+              <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.65 7.65 0 0 1 2-.27c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/>
+            </svg>
+            <span class="nav-text">GitHub</span>
+            <span id="github-stars-container" class="gh-stars"></span>
+          </a>
+          <div class="lang-switch" role="group" aria-label="Language">
+            <a class="lang-link {% if lang=='zh' %}active{% endif %}" data-lang="zh" href="{{ lang_url('zh') }}">中文</a>
+            <a class="lang-link {% if lang=='en' %}active{% endif %}" data-lang="en" href="{{ lang_url('en') }}">EN</a>
+          </div>
+        </nav>
       </div>
-    </nav>
-    <div class="container">{% block content %}{% endblock %}</div>
+    </header>
+
+    {% if mock_mode %}<div class="mock-banner">⚠️ {{ t.mock_banner }}</div>{% endif %}
+
+    <main class="container main">{% block content %}{% endblock %}</main>
 
     <footer class="site-footer">
       <div class="container">
         <span>&copy; {{ t.site_name }}</span>
-        <span class="mx-2">|</span>
+        <span class="sep">|</span>
+        <a href="https://github.com/coldchair/CPRet" target="_blank" rel="noopener noreferrer">GitHub: coldchair/CPRet</a>
+        <span class="sep">|</span>
         <a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener noreferrer">京ICP备2025129779号-1</a>
       </div>
     </footer>
+
+    <script>window.CPRET_I18N = {{ js_i18n | tojson }};</script>
+    <script src="{{ static_v('js/common.js') }}" defer></script>
+    {% block scripts %}{% endblock %}
   </body>
 </html>

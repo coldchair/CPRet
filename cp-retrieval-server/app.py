@@ -3,22 +3,25 @@ from __future__ import annotations
 import json
 import math
 import os
+import tempfile
 import threading
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from functools import lru_cache
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
-import torch
-from flask import Flask, jsonify, render_template, request
-from markupsafe import Markup
-from sentence_transformers import SentenceTransformer
+from flask import Flask, jsonify, render_template, request, url_for
+from markupsafe import Markup, escape
+
+import insights as insights_mod
 
 # ===== Multilingual dictionary =====
 I18N = {
     "zh": {
         "site_name" : "CPRet：编程竞赛题目检索",
+        "site_short": "CPRet",
+        "tagline": "用自然语言描述题意，在十余万道编程竞赛题中找到相似题",
         "new_domain_info": "最新域名 <a href='https://cpret.online' target='_blank' class='alert-link'>cpret.online</a> · <a href='https://github.com/coldchair/CPRet' target='_blank' class='alert-link'>GitHub</a> · 题目库 <a href='https://huggingface.co/datasets/coldchair16/CPRet-Embeddings' target='_blank' class='alert-link'>Hugging Face 下载</a>",
         "paper_info": "📰 2025 年 9 月更新：🎉 恭喜！我们的项目论文 <a href='https://neurips.cc/virtual/2025/poster/121814' target='_blank'>CPRet</a> 被 NeurIPS 2025 D&B track 接收！",
         "info": "📢 2025 年 7 月更新：我们已升级模型并同步更新了题目数据库，检索效果更佳！",
@@ -38,16 +41,48 @@ I18N = {
         "total_search_count": "总搜索次数",
         "example_report": "使用示例（实测报告）",
         "filter_by_oj": "筛选 OJ",
-        "select_all": "全选",      
+        "select_all": "全选",
         "deselect_all": "全不选",
         "moving_average": "渐近平均",
         "search_progress": "搜索进度",
         "elapsed_time": "已花费时间",
         "estimated_time": "预估时间",
         "token_count_label": "Token 数量",
+        # --- new: insights & UI ---
+        "insights_title": "结果方向",
+        "insights_hint": "基于前 {k} 条结果的题目向量自动分析",
+        "clusters_title": "方向分组",
+        "clusters_empty": "前列结果方向较集中，未拆分分组。",
+        "scatter_title": "二维分布",
+        "scatter_hint": "越靠近 ★ 越接近查询；同色为同一方向，点击查看题面",
+        "query_point": "查询",
+        "problems_unit": "题",
+        "avg_sim": "平均",
+        "max_sim": "最高",
+        "mmr_label": "多样化排序",
+        "mmr_tip": "让靠前结果覆盖不同方向，减少近似题扎堆",
+        "dedup_label": "合并重复题",
+        "dedup_tip": "将不同 OJ 上的同一道题折叠为一条",
+        "see_also": "另有 {n} 个同题/近似题",
+        "cluster_filter_active": "仅显示方向",
+        "clear_filter": "清除筛选",
+        "show_all": "全部",
+        "view_problem": "查看题面",
+        "orig_rank": "原排名",
+        "selected_count": "已选 {n}/{total}",
+        "recent7": "近 7 日日均",
+        "recent30": "近 30 日日均",
+        "days_tracked": "统计天数",
+        "stats_table": "每日明细",
+        "chart_note": "图表不含当天（未结束）",
+        "no_data": "暂无数据",
+        "mock_banner": "调试模式：未加载模型，查询向量由已有题目 embedding 近似生成",
+        "dup_groups": "合并 {n} 组重复",
     },
     "en": {
         "site_name" : "CPRet: Competitive Programming Problem Retrieval",
+        "site_short": "CPRet",
+        "tagline": "Describe a problem in natural language and find similar ones among 100k+ competitive programming problems",
         "new_domain_info": "Domain <a href='https://cpret.online' target='_blank' class='alert-link'>cpret.online</a> · <a href='https://github.com/coldchair/CPRet' target='_blank' class='alert-link'>GitHub</a> · dataset <a href='https://huggingface.co/datasets/coldchair16/CPRet-Embeddings' target='_blank' class='alert-link'>Hugging Face</a>",
         "paper_info": "📰 September 2025 Update: 🎉 Congrats! Our project paper <a href='https://neurips.cc/virtual/2025/poster/121814' target='_blank'>CPRet</a> has been accepted by the NeurIPS 2025 D&B track!",
         "info": "📢 July 2025 Update: We've upgraded our model and synchronized the problem database for better retrieval!",
@@ -67,15 +102,53 @@ I18N = {
         "total_search_count": "Total Search Count",
         "example_report": "Test Cases (Demo Report)",
         "filter_by_oj": "Filter by OJ",
-        "select_all": "Select All",      
+        "select_all": "Select All",
         "deselect_all": "Deselect All",
         "moving_average": "Moving Average",
         "search_progress": "Search Progress",
         "elapsed_time": "Elapsed",
         "estimated_time": "Estimated",
         "token_count_label": "Token Count",
+        # --- new: insights & UI ---
+        "insights_title": "Result Directions",
+        "insights_hint": "Automatically analysed from embeddings of the top {k} results",
+        "clusters_title": "Topic Groups",
+        "clusters_empty": "Top results are focused on one direction; no grouping.",
+        "scatter_title": "2D Map",
+        "scatter_hint": "Closer to ★ means closer to the query; same colour = same group; click to open",
+        "query_point": "Query",
+        "problems_unit": "problems",
+        "avg_sim": "avg",
+        "max_sim": "max",
+        "mmr_label": "Diversify",
+        "mmr_tip": "Make top results cover different directions instead of near-duplicates",
+        "dedup_label": "Merge duplicates",
+        "dedup_tip": "Fold the same problem on different OJs into one entry",
+        "see_also": "{n} more identical/similar",
+        "cluster_filter_active": "Showing group",
+        "clear_filter": "Clear filter",
+        "show_all": "All",
+        "view_problem": "Statement",
+        "orig_rank": "Orig. rank",
+        "selected_count": "{n}/{total} selected",
+        "recent7": "7-day avg",
+        "recent30": "30-day avg",
+        "days_tracked": "Days tracked",
+        "stats_table": "Daily Details",
+        "chart_note": "Chart excludes today (incomplete)",
+        "no_data": "No data yet",
+        "mock_banner": "Debug mode: model not loaded; query vectors are approximated from stored problem embeddings",
+        "dup_groups": "{n} duplicate groups merged",
     },
 }
+
+# Keys exposed to front-end JS.
+JS_I18N_KEYS = (
+    "token_count_label", "problems_unit", "avg_sim", "max_sim", "query_point",
+    "clear_filter", "cluster_filter_active", "clusters_empty", "insights_hint",
+    "search_count", "moving_average", "date", "no_data", "selected_count",
+    "view_problem", "show_all",
+)
 
 
 def detect_lang():
@@ -87,28 +160,48 @@ def detect_lang():
     return "en" if header.lower().startswith("en") else "zh"
 
 
-# ---------------- Configuration ---------------- #
-_APP_DIR = os.path.dirname(os.path.abspath(__file__))
-SEARCH_STATS_PATH = os.path.join(_APP_DIR, "search_stats.json")
-SEARCH_TIME_STATS_PATH = os.path.join(_APP_DIR, "search_time_stats.json")
-MODEL_PATH = os.getenv("MODEL_PATH", "coldchair16/CPRetriever-Prob-Qwen3-4B-2510")
-EMB_PATH = os.getenv("EMB_PATH", "./probs_2611_embs.npy")
-PROB_PATH = os.getenv("PROB_PATH", "./probs_2611.jsonl")
-
-PAGE_SIZE = 20
-MAX_QUERY_TOKENS = 2048
-SEARCH_CACHE_SIZE = 1024
-MAX_TIMING_SAMPLES = 5000
-# Ignore sub-millisecond timings (LRU cache hits) when fitting ETA.
-MIN_TIMING_RECORD_MS = 50.0
-# ------------------------------------- #
-
-
 def env_flag(name: str, default: bool) -> bool:
     raw = os.getenv(name)
     if raw is None:
         return default
     return raw.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def env_number(name: str, default: float, lo: float, hi: float, cast=float):
+    raw = os.getenv(name)
+    try:
+        val = cast(raw) if raw is not None else default
+    except (TypeError, ValueError):
+        val = default
+    return cast(min(max(val, lo), hi))
+
+
+# ---------------- Configuration ---------------- #
+_APP_DIR = os.path.dirname(os.path.abspath(__file__))
+MOCK_MODEL = env_flag("MOCK_MODEL", default=False)
+_STATS_SUFFIX = ".mock" if MOCK_MODEL else ""
+SEARCH_STATS_PATH = os.path.join(_APP_DIR, "search_stats.json" + _STATS_SUFFIX)
+SEARCH_TIME_STATS_PATH = os.path.join(_APP_DIR, "search_time_stats.json" + _STATS_SUFFIX)
+MODEL_PATH = os.getenv("MODEL_PATH", "coldchair16/CPRetriever-Prob-Qwen3-4B-2510")
+EMB_PATH = os.getenv("EMB_PATH", "./probs_2611_embs.npy")
+PROB_PATH = os.getenv("PROB_PATH", "./probs_2611.jsonl")
+# Memory-map embeddings instead of loading a normalised copy (saves RAM).
+EMB_MMAP = env_flag("EMB_MMAP", default=MOCK_MODEL)
+
+PAGE_SIZE = 20
+MAX_QUERY_TOKENS = 2048
+SEARCH_CACHE_SIZE = int(env_number("SEARCH_CACHE_SIZE", 1024, 1, 100000, int))
+INSIGHT_CACHE_SIZE = 256
+MAX_TIMING_SAMPLES = 5000
+# Ignore sub-millisecond timings (LRU cache hits) when fitting ETA.
+MIN_TIMING_RECORD_MS = 50.0
+
+INSIGHT_TOPK = int(env_number("INSIGHT_TOPK", 100, 10, 200, int))
+DEDUP_THRESHOLD = float(env_number("DEDUP_THRESHOLD", 0.92, 0.5, 1.0))
+MMR_LAMBDA = float(env_number("MMR_LAMBDA", 0.7, 0.0, 1.0))
+HOST = os.getenv("HOST", "0.0.0.0")
+PORT = int(env_number("PORT", 5000, 1, 65535, int))
+# ------------------------------------- #
 
 
 def load_json(path: str, default: Any) -> Any:
@@ -121,14 +214,13 @@ def load_json(path: str, default: Any) -> Any:
         return default
 
 
-import tempfile
 def save_json(path: str, payload: Any) -> None:
     dirname = os.path.dirname(os.path.abspath(path))
     fd, temp_path = tempfile.mkstemp(dir=dirname, text=True)
     try:
         with os.fdopen(fd, 'w', encoding="utf-8") as f:
             json.dump(payload, f, ensure_ascii=False, indent=2)
-        os.replace(temp_path, path) 
+        os.replace(temp_path, path)
     except Exception as e:
         if os.path.exists(temp_path):
             os.remove(temp_path)
@@ -140,6 +232,22 @@ def parse_page(raw_page: str) -> int:
         return max(int(raw_page), 1)
     except (TypeError, ValueError):
         return 1
+
+
+def parse_bool(raw: Optional[str], default: bool) -> bool:
+    if raw is None or raw == "":
+        return default
+    return raw.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def parse_cluster(raw: Optional[str]) -> Optional[int]:
+    if raw is None or raw == "":
+        return None
+    try:
+        v = int(raw)
+    except (TypeError, ValueError):
+        return None
+    return v if 0 <= v < 64 else None
 
 
 _search_stats_lock = threading.Lock()
@@ -177,44 +285,105 @@ def init_search_stats_memory() -> None:
 app = Flask(__name__)
 
 # ---------- Load model & data on startup ---------- #
-print("Loading SentenceTransformer model …")
-use_bf16 = env_flag("BF_16", default=True)
-if use_bf16:
-    model = SentenceTransformer(
-        MODEL_PATH,
-        trust_remote_code=True,
-        model_kwargs={"torch_dtype": torch.bfloat16},
-    )
+model = None
+if MOCK_MODEL:
+    print("[MOCK_MODEL] Skipping model loading (debug only).")
 else:
-    model = SentenceTransformer(MODEL_PATH, trust_remote_code=True)
-model.tokenizer.model_max_length = MAX_QUERY_TOKENS
-model.max_seq_length = MAX_QUERY_TOKENS
+    import torch
+    from sentence_transformers import SentenceTransformer
+
+    print("Loading SentenceTransformer model …")
+    use_bf16 = env_flag("BF_16", default=True)
+    if use_bf16:
+        model = SentenceTransformer(
+            MODEL_PATH,
+            trust_remote_code=True,
+            model_kwargs={"torch_dtype": torch.bfloat16},
+        )
+    else:
+        model = SentenceTransformer(MODEL_PATH, trust_remote_code=True)
+    model.tokenizer.model_max_length = MAX_QUERY_TOKENS
+    model.max_seq_length = MAX_QUERY_TOKENS
 
 print("Loading pre‑computed embeddings …")
-embs = np.load(EMB_PATH).astype("float32")
-embs /= np.linalg.norm(embs, axis=1, keepdims=True)
+emb_norms: Optional[np.ndarray] = None
+if EMB_MMAP:
+    embs = np.load(EMB_PATH, mmap_mode="r")
+    if embs.dtype != np.float32:
+        print(f"EMB_MMAP: dtype {embs.dtype} is not float32, falling back to full load.")
+        embs = np.asarray(embs, dtype=np.float32)
+        embs /= np.linalg.norm(embs, axis=1, keepdims=True)
+    else:
+        _chunk = 8192
+        emb_norms = np.empty(embs.shape[0], dtype=np.float32)
+        for _s in range(0, embs.shape[0], _chunk):
+            emb_norms[_s:_s + _chunk] = np.linalg.norm(embs[_s:_s + _chunk], axis=1)
+        emb_norms = np.maximum(emb_norms, 1e-12)
+else:
+    embs = np.load(EMB_PATH).astype("float32")
+    embs /= np.linalg.norm(embs, axis=1, keepdims=True)
 
 print("Loading problem metadata …")
 with open(PROB_PATH, "r", encoding="utf-8") as f:
     probs = [json.loads(line) for line in f]
 
-# 收集所有可用的 OJ 源，用于前端下拉菜单
+# 收集所有可用的 OJ 源，用于前端筛选
 available_ojs = sorted({p.get("source") for p in probs if p.get("source")})
+_oj_code = {name: i for i, name in enumerate(available_ojs)}
+source_codes = np.array([_oj_code.get(p.get("source"), -1) for p in probs], dtype=np.int32)
 
 assert len(probs) == embs.shape[0], "Mismatch between vector and problem count!"
+
+
+def get_vecs(idx: np.ndarray) -> np.ndarray:
+    """Return L2-normalised float32 embeddings for the given indices."""
+    idx = np.asarray(idx, dtype=np.int64)
+    v = np.asarray(embs[idx], dtype=np.float32)
+    if emb_norms is not None:
+        v = v / emb_norms[idx, None]
+    return v
+
+
+def score_all(q_emb: np.ndarray) -> np.ndarray:
+    sims = np.asarray(embs.dot(q_emb), dtype=np.float32)
+    if emb_norms is not None:
+        sims = sims / emb_norms
+    return sims
+
+
+mock_encoder = None
+if MOCK_MODEL:
+    from mock_encoder import MockEncoder
+
+    mock_encoder = MockEncoder(probs, get_vecs)
+
 print(f"Ready! {len(probs)} problems indexed.\n")
 
 init_search_stats_memory()
 
 
-@lru_cache(maxsize=SEARCH_CACHE_SIZE)
-def search_once(q: str) -> Tuple[List[int], List[float]]:
-    """Return ranked indices and similarity list (numpy array -> Python list)"""
-    q_emb = model.encode(q, convert_to_tensor=True).to(torch.float32).cpu().numpy()
+@lru_cache(maxsize=SEARCH_CACHE_SIZE * 4)
+def encode_query(q: str) -> np.ndarray:
+    """Encode and L2-normalise the query (float32, read-only)."""
+    if mock_encoder is not None:
+        q_emb = mock_encoder.encode(q)
+    else:
+        q_emb = model.encode(q, convert_to_tensor=True).to(torch.float32).cpu().numpy()
+    q_emb = np.asarray(q_emb, dtype=np.float32)
     q_emb = q_emb / np.linalg.norm(q_emb)
-    sims = embs.dot(q_emb)
-    idx = sims.argsort()[::-1]
-    return idx.tolist(), sims.tolist()
+    q_emb.setflags(write=False)
+    return q_emb
+
+
+@lru_cache(maxsize=SEARCH_CACHE_SIZE)
+def rank_all(q: str) -> Tuple[np.ndarray, np.ndarray]:
+    """Return (ranked indices int32, similarity float32) as read-only arrays."""
+    q_emb = encode_query(q)
+    sims = score_all(q_emb)
+    order = np.argsort(-sims, kind="stable").astype(np.int32)
+    order.setflags(write=False)
+    sims.setflags(write=False)
+    return order, sims
 
 
 def load_search_stats() -> Dict[str, int]:
@@ -269,7 +438,7 @@ def fit_eta_model(samples: Sequence[Dict[str, Any]]) -> Optional[Dict[str, float
         try:
             x = int(s.get("token_count", 0))
             y = float(s.get("elapsed_ms", 0.0))
-        except (TypeError, ValueError):
+        except (TypeError, ValueError, AttributeError):
             continue
         if x > 0 and y >= MIN_TIMING_RECORD_MS:
             valid.append((x, y))
@@ -314,6 +483,8 @@ def estimate_elapsed_ms(token_count: int, model_ab: Optional[Dict[str, float]]) 
 
 def get_query_token_count(q: str) -> int:
     """Get tokenizer token count (same tokenizer used by retrieval model)."""
+    if mock_encoder is not None:
+        return mock_encoder.count_tokens(q, MAX_QUERY_TOKENS)
     encoded = model.tokenizer(
         q,
         add_special_tokens=False,
@@ -326,8 +497,91 @@ def get_query_token_count(q: str) -> int:
 
 def get_selected_ojs_from_args(args: Any) -> List[str]:
     if "oj" in args:
-        return args.getlist("oj")
+        allowed = set(available_ojs)
+        seen = set()
+        out = []
+        for name in args.getlist("oj"):
+            if name in allowed and name not in seen:
+                seen.add(name)
+                out.append(name)
+        return out
     return available_ojs
+
+
+def parse_view_params(args: Any) -> Dict[str, Any]:
+    return {
+        "mmr": parse_bool(args.get("mmr"), False),
+        "dedup": parse_bool(args.get("dedup"), True),
+        "cluster": parse_cluster(args.get("cluster")),
+    }
+
+
+def filter_indices_by_oj(indices: np.ndarray, oj_key: Tuple[str, ...]) -> np.ndarray:
+    """Vectorised OJ filter preserving order."""
+    if len(oj_key) == len(available_ojs):
+        return indices
+    codes = np.array([_oj_code[o] for o in oj_key], dtype=np.int32)
+    mask = np.isin(source_codes, codes)
+    return indices[mask[indices]]
+
+
+def _title_of(pid: int, fallback: str = "") -> str:
+    return probs[pid].get("title") or fallback
+
+
+@lru_cache(maxsize=INSIGHT_CACHE_SIZE)
+def get_insights(q: str, oj_key: Tuple[str, ...], dedup: bool) -> Dict[str, Any]:
+    """Cluster / dedup / MMR / 2D analysis on the filtered top-K (cached)."""
+    order, sims = rank_all(q)
+    filtered = filter_indices_by_oj(order, oj_key)
+    top = np.asarray(filtered[:INSIGHT_TOPK], dtype=np.int64)
+    if top.size == 0:
+        res = insights_mod.analyze([], np.zeros((0, 1)), np.zeros(0), [], None)
+    else:
+        tic = time.perf_counter()
+        res = insights_mod.analyze(
+            top,
+            get_vecs(top),
+            sims[top],
+            [_title_of(int(i)) for i in top],
+            encode_query(q),
+            dedup_threshold=DEDUP_THRESHOLD,
+            mmr_lambda=MMR_LAMBDA,
+            dedup=dedup,
+        )
+        app.logger.debug("insights computed in %.1f ms", (time.perf_counter() - tic) * 1000)
+    res["orig_rank"] = {int(pid): i + 1 for i, pid in enumerate(top)}
+    return res
+
+
+def public_insights(ins: Dict[str, Any], dup_groups: int) -> Dict[str, Any]:
+    """Subset of insights sent to the browser."""
+    return {
+        "k": ins["k"],
+        "clusters": ins["clusters"],
+        "points": ins["points"] if ins["clusters"] or len(ins["points"]) >= 3 else [],
+        "query_point": ins["query_point"],
+        "dup_groups": dup_groups,
+    }
+
+
+def build_display_order(
+    filtered: np.ndarray,
+    ins: Dict[str, Any],
+    mmr: bool,
+    cluster: Optional[int],
+) -> Tuple[np.ndarray, Optional[int]]:
+    """Return the list to paginate and the effective cluster filter."""
+    k = ins["k"]
+    if k == 0:
+        return filtered, None
+    head = ins["mmr_order"] if mmr else ins["primary"]
+    if cluster is not None and 0 <= cluster < len(ins["clusters"]):
+        assign = ins["assign"]
+        sel = [p for p in head if assign.get(p) == cluster]
+        return np.asarray(sel, dtype=np.int64), cluster
+    tail = np.asarray(filtered[k:], dtype=np.int64)
+    return np.concatenate([np.asarray(head, dtype=np.int64), tail]), None
 
 
 def execute_search(
@@ -335,13 +589,17 @@ def execute_search(
     page: int,
     selected_ojs: List[str],
     title_fallback: str,
+    view: Optional[Dict[str, Any]] = None,
+    count: bool = True,
 ) -> Dict[str, Any]:
     """Run retrieval and return result payload for templates / API."""
+    view = view or {"mmr": False, "dedup": True, "cluster": None}
     results: List[Dict[str, Any]] = []
     total = 0
     elapsed = 0.0
     query_token_count = 0
     estimated_ms: Optional[float] = None
+    empty_insights = {"k": 0, "clusters": [], "points": [], "query_point": None, "dup_groups": 0}
 
     if not q:
         return {
@@ -351,6 +609,8 @@ def execute_search(
             "query_token_count": query_token_count,
             "estimated_ms": estimated_ms,
             "max_page": 1,
+            "insights": empty_insights,
+            "params": dict(view),
         }
 
     time_samples = load_search_time_stats()
@@ -358,20 +618,27 @@ def execute_search(
     query_token_count = get_query_token_count(q)
     estimated_ms = estimate_elapsed_ms(query_token_count, eta_model)
 
-    record_search()
-    cache_hits_before = search_once.cache_info().hits
+    if count:
+        record_search()
+    cache_hits_before = rank_all.cache_info().hits
     tic = time.perf_counter()
-    idx, sims = search_once(q)
+    order, sims = rank_all(q)
     elapsed = (time.perf_counter() - tic) * 1_000
-    cache_hit = search_once.cache_info().hits > cache_hits_before
-    if not cache_hit and elapsed >= MIN_TIMING_RECORD_MS:
+    cache_hit = rank_all.cache_info().hits > cache_hits_before
+    if not cache_hit and elapsed >= MIN_TIMING_RECORD_MS and not MOCK_MODEL:
         record_search_timing(query_token_count, elapsed)
 
-    filtered_idx = filter_indices_by_oj(idx, selected_ojs)
-    total = len(filtered_idx)
-    results = build_results_page(filtered_idx, sims, page, title_fallback)
-    max_page = max(1, math.ceil(total / PAGE_SIZE))
+    oj_key = tuple(sorted(selected_ojs))
+    filtered = filter_indices_by_oj(order, oj_key)
+    ins = get_insights(q, oj_key, bool(view["dedup"]))
+    display, eff_cluster = build_display_order(filtered, ins, bool(view["mmr"]), view["cluster"])
 
+    total = int(display.shape[0])
+    max_page = max(1, math.ceil(total / PAGE_SIZE))
+    results = build_results_page(display, sims, page, title_fallback, ins, filtered)
+
+    dup_groups = len(ins["duplicates"]) if view["dedup"] else 0
+    params = {"mmr": bool(view["mmr"]), "dedup": bool(view["dedup"]), "cluster": eff_cluster}
     return {
         "results": results,
         "total": total,
@@ -379,38 +646,115 @@ def execute_search(
         "query_token_count": query_token_count,
         "estimated_ms": estimated_ms,
         "max_page": max_page,
+        "insights": public_insights(ins, dup_groups),
+        "params": params,
     }
 
 
-def filter_indices_by_oj(indices: Sequence[int], selected_ojs: Sequence[str]) -> List[int]:
-    selected = set(selected_ojs)
-    return [j for j in indices if probs[j].get("source") in selected]
-
-
 def build_results_page(
-    filtered_indices: Sequence[int],
-    sims: Sequence[float],
+    display: np.ndarray,
+    sims: np.ndarray,
     page: int,
     title_fallback: str,
+    ins: Dict[str, Any],
+    filtered: np.ndarray,
 ) -> List[Dict[str, Any]]:
     start = (page - 1) * PAGE_SIZE
     end = page * PAGE_SIZE
-    page_indices = filtered_indices[start:end]
+    page_indices = display[start:end]
+    k = ins["k"]
+    orig_rank = ins.get("orig_rank", {})
+    assign = ins.get("assign", {})
+    dup_map = ins.get("duplicates", {})
 
     results: List[Dict[str, Any]] = []
     for rank, j in enumerate(page_indices, start=start + 1):
+        j = int(j)
         problem = probs[j]
+        o_rank = orig_rank.get(j)
+        if o_rank is None:
+            # Tail items keep their position in the filtered list.
+            o_rank = k + (rank - (display.shape[0] - (filtered.shape[0] - k))) if k else rank
+        dups = [
+            {
+                "pid": d,
+                "title": probs[d].get("title") or title_fallback,
+                "url": probs[d].get("url", "#"),
+                "source": probs[d].get("source", ""),
+                "score": float(sims[d]),
+            }
+            for d in dup_map.get(j, [])
+        ]
         results.append(
             {
                 "rank": rank,
+                "orig_rank": int(o_rank),
                 "pid": j,
                 "score": float(sims[j]),
                 "title": problem.get("title") or title_fallback,
                 "url": problem.get("url", "#"),
                 "source": problem.get("source", ""),
+                "cluster": assign.get(j),
+                "duplicates": dups,
             }
         )
     return results
+
+
+def _common_context(lang: str) -> Dict[str, Any]:
+    t = I18N[lang]
+    return {
+        "lang": lang,
+        "t": t,
+        "js_i18n": {k: t[k] for k in JS_I18N_KEYS},
+        "mock_mode": MOCK_MODEL,
+    }
+
+
+@app.context_processor
+def inject_static_helpers() -> Dict[str, Any]:
+    def static_v(filename: str) -> str:
+        path = os.path.join(app.static_folder or "", filename)
+        try:
+            v = int(os.path.getmtime(path))
+        except OSError:
+            v = 0
+        return url_for("static", filename=filename, v=v)
+
+    def lang_url(target: str) -> str:
+        """Current page URL with ?lang= replaced (keeps other query args)."""
+        args = request.args.to_dict(flat=False)
+        args["lang"] = [target]
+        endpoint = request.endpoint or "index"
+        try:
+            return url_for(endpoint, **(request.view_args or {}), **args)
+        except Exception:  # pragma: no cover - defensive
+            return url_for("index", lang=target)
+
+    return {"static_v": static_v, "lang_url": lang_url}
+
+
+@app.template_filter("safe_url")
+def safe_url(value: Any) -> str:
+    """Allow only http(s) / relative URLs in href attributes."""
+    s = str(value or "").strip()
+    low = s.lower()
+    if low.startswith(("http://", "https://", "/")) and not low.startswith("//"):
+        return s
+    return "#"
+
+
+def _template_args(q: str, page: int, selected_ojs: List[str], payload: Dict[str, Any]) -> Dict[str, Any]:
+    all_selected = len(selected_ojs) == len(available_ojs)
+    return {
+        "query": q,
+        "page": page,
+        "page_size": PAGE_SIZE,
+        "selected_ojs": selected_ojs,
+        "oj_link": None if all_selected else selected_ojs,
+        "available_ojs": available_ojs,
+        **payload,
+    }
 
 
 @app.route("/", methods=["GET"])
@@ -421,19 +765,15 @@ def index() -> str:
     q = request.args.get("q", "").strip()
     page = parse_page(request.args.get("page", "1"))
     selected_ojs = get_selected_ojs_from_args(request.args)
+    view = parse_view_params(request.args)
+    count = parse_bool(request.args.get("count"), True)
 
-    payload = execute_search(q, page, selected_ojs, t["untitled"])
+    payload = execute_search(q, page, selected_ojs, t["untitled"], view, count)
 
     return render_template(
         "index.html",
-        lang=lang,
-        t=t,
-        query=q,
-        page=page,
-        page_size=PAGE_SIZE,
-        selected_ojs=selected_ojs,
-        available_ojs=available_ojs,
-        **payload,
+        **_common_context(lang),
+        **_template_args(q, page, selected_ojs, payload),
     )
 
 
@@ -449,16 +789,14 @@ def api_search():
 
     page = parse_page(request.args.get("page", "1"))
     selected_ojs = get_selected_ojs_from_args(request.args)
-    payload = execute_search(q, page, selected_ojs, t["untitled"])
+    view = parse_view_params(request.args)
+    count = parse_bool(request.args.get("count"), True)
+    payload = execute_search(q, page, selected_ojs, t["untitled"], view, count)
 
     html = render_template(
         "_search_results.html",
-        lang=lang,
-        t=t,
-        query=q,
-        page=page,
-        selected_ojs=selected_ojs,
-        **payload,
+        **_common_context(lang),
+        **_template_args(q, page, selected_ojs, payload),
     )
     return jsonify(
         {
@@ -469,6 +807,8 @@ def api_search():
             "total": payload["total"],
             "page": page,
             "max_page": payload["max_page"],
+            "insights": payload["insights"],
+            "params": payload["params"],
         }
     )
 
@@ -505,28 +845,27 @@ def problem(pid: int):
 
     p = probs[pid]
 
-    raw = p.get("text", "(No text)").replace("\n", "<br>")
-    text_html = Markup(raw)
+    # Escape first, then turn newlines into <br> (prevents XSS from problem text).
+    text_html = Markup(escape(p.get("text") or "(No text)").replace("\n", Markup("<br>")))
 
+    oj_list = get_selected_ojs_from_args(request.args) if "oj" in request.args else None
     return render_template(
         "problem.html",
-        lang=lang,
-        t=t,
+        **_common_context(lang),
         pid=pid,
         title=p.get("title") or t["untitled"],
         source=p.get("source", ""),
         url=p.get("url", "#"),
         text_html=text_html,
         query=request.args.get("q", ""),
-        page=request.args.get("page", "1"),
-        selected_ojs_str=request.args.get("oj", ""),
+        page=parse_page(request.args.get("page", "1")),
+        oj_link=oj_list,
     )
 
 
 @app.route("/stats")
 def stats():
     lang = detect_lang()
-    t = I18N[lang]
 
     stats = load_search_stats()
     stats_data = sorted(stats.items(), key=lambda x: x[0], reverse=True)
@@ -534,15 +873,29 @@ def stats():
     stats_draw = list(reversed(stats_data))
     stats_draw = stats_draw[:-1]
 
+    total = sum(c for _, c in stats_data)
+    today = datetime.now().date()
+
+    def window_avg(days: int) -> float:
+        start = (today - timedelta(days=days)).strftime("%Y-%m-%d")
+        end = today.strftime("%Y-%m-%d")
+        vals = [c for d, c in stats_data if start <= d < end]
+        return (sum(vals) / days) if vals else 0.0
+
     return render_template(
         "stats.html",
-        lang=lang,
-        t=t,
+        **_common_context(lang),
         stats=stats_data,
         stats_draw=stats_draw,
+        total=total,
+        avg7=window_avg(7),
+        avg30=window_avg(30),
+        days=len(stats_data),
+        query="",
     )
+
 
 # -------------- Local run entry -------------- #
 if __name__ == "__main__":
     # export FLASK_ENV=development to enable auto-reload/debug
-    app.run(host="0.0.0.0", port=5000, debug=False)
+    app.run(host=HOST, port=PORT, debug=False)

@@ -1,20 +1,26 @@
 {% extends "base.html" %}
+{% block title %}{{ title }} · {{ t.site_short }}{% endblock %}
 {% block content %}
-<a class="btn btn-link mb-3" href="{{ url_for('index', q=query, page=page, lang=lang) }}">
+<a class="crumb" href="{{ url_for('index', q=query or None, page=page if query else None, lang=lang, oj=oj_link) }}">
   ← {{ t.back }}
 </a>
 
-<h2 class="h4">{{ title }}</h2>
-<p class="text-muted">{{ source }}</p>
-
-<div class="my-4">
-  <!-- 题面正文 -->
-  <div class="border rounded p-3 bg-light">
-    {{ text_html }}
+<header class="problem-head glass">
+  <h1 class="problem-title">{{ title }}</h1>
+  <div class="problem-meta">
+    {% if source %}<span class="oj-tag">{{ source }}</span>{% endif %}
+    <span class="muted">#{{ pid }}</span>
+    <span class="spacer"></span>
+    <a class="btn btn-primary btn-sm" href="{{ url | safe_url }}" target="_blank" rel="noopener noreferrer">{{ t.view_origin }} ↗</a>
   </div>
-</div>
+</header>
 
-<a class="btn btn-outline-primary" href="{{ url }}" target="_blank">
-  {{ t.view_origin }} 🔗
-</a>
+<article class="statement glass">
+  <div class="statement-inner">{{ text_html }}</div>
+</article>
+
+<div class="problem-foot">
+  <a class="btn btn-ghost" href="{{ url_for('index', q=query or None, page=page if query else None, lang=lang, oj=oj_link) }}">← {{ t.back }}</a>
+  <a class="btn btn-ghost" href="{{ url | safe_url }}" target="_blank" rel="noopener noreferrer">{{ t.view_origin }} 🔗</a>
+</div>
 {% endblock %}

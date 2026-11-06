@@ -1,77 +1,91 @@
 {% extends "base.html" %}
 {% block content %}
-<h1 class="h4 mb-4">{{ t.site_name }}</h1>
+<section class="hero glass">
+  <div class="hero-balloons" aria-hidden="true"><span></span><span></span><span></span></div>
+  <p class="hero-kicker">// Competitive Programming Problem Retrieval</p>
+  {% set _parts = t.site_name.split('：') if '：' in t.site_name else t.site_name.split(': ') %}
+  <h1 class="hero-title"><span class="hl">{{ _parts[0] }}</span>{% if _parts|length > 1 %}{{ '：' if lang == 'zh' else ': ' }}{{ _parts[1] }}{% endif %}</h1>
+  <p class="hero-sub">{{ t.tagline }}</p>
 
-<div class="alert alert-info" role="alert" style="font-size:0.90rem; padding:0.25rem 0.5rem; line-height:1.2; margin:0.05;">
-  {{ t.info2 | safe }}
-</div>
-
-<div class="alert alert-warning" role="alert" style="font-size:0.90rem; padding:0.25rem 0.5rem; line-height:1.2; margin:0.05;">
-  {{ t.paper_info | safe }}
-</div>
-
-<div class="alert alert-success" role="alert" style="font-size:0.90rem; padding:0.25rem 0.5rem; line-height:1.2; margin:0.05;">
-  {{ t.new_domain_info | safe }}
-</div>
-
-<form id="search-form" method="get" action="{{ url_for('index') }}">
-  <input type="hidden" name="lang" value="{{ lang }}">
-  <div class="mb-3">
-    <textarea id="query-box" name="q" class="form-control mb-3" rows="8"
-              placeholder="{{ t.placeholder }}">{{ query }}</textarea>
-    <button type="button" class="btn btn-sm btn-outline-secondary me-3" onclick="fillTemplate()">
-      💡 {{ t.template_btn }}
-    </button>
-    <a href="https://github.com/coldchair/CPRet/blob/main/TestCases.md"
-        target="_blank"
-        class="btn btn-sm btn-link p-0 text-decoration-none"
-        style="line-height: 1.5;">
-      🧪 {{ t.example_report }}
-    </a>
+  <div class="notice-row">
+    <div class="notice notice-info" role="note">{{ t.info2 | safe }}</div>
+    <div class="notice notice-warn" role="note">{{ t.paper_info | safe }}</div>
+    <div class="notice notice-ok" role="note">{{ t.new_domain_info | safe }}</div>
   </div>
-  <div class="mb-3">
-    <div class="d-flex align-items-center mb-2">
-      <label class="form-label mb-0 me-2">{{ t.filter_by_oj }}</label>
-      <div>
-        <button type="button" class="btn btn-outline-secondary btn-sm me-1" onclick="selectAllOJs()">{{ t.select_all }}</button>
-        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="deselectAllOJs()">{{ t.deselect_all }}</button>
+
+  <form id="search-form" method="get" action="{{ url_for('index') }}">
+    <input type="hidden" name="lang" value="{{ lang }}">
+    <input type="hidden" name="mmr" id="param-mmr" value="{{ '1' if params.mmr else '' }}">
+    <input type="hidden" name="dedup" id="param-dedup" value="{{ '' if params.dedup else '0' }}">
+    <input type="hidden" name="cluster" id="param-cluster" value="{{ params.cluster if params.cluster is not none else '' }}">
+
+    <div class="query-wrap">
+      <textarea id="query-box" name="q" class="query-input" rows="7"
+                placeholder="{{ t.placeholder }}">{{ query }}</textarea>
+      <div class="query-actions">
+        <button type="button" class="btn btn-ghost btn-sm" id="fill-template">💡 {{ t.template_btn }}</button>
+        <a class="btn btn-text btn-sm" href="https://github.com/coldchair/CPRet/blob/main/TestCases.md"
+           target="_blank" rel="noopener noreferrer">🧪 {{ t.example_report }}</a>
+        <span class="spacer"></span>
+        <span class="kbd-hint"><kbd>Ctrl</kbd> + <kbd>Enter</kbd></span>
+        <button type="submit" class="btn btn-primary btn-lg" id="search-submit">
+          <span class="spinner" aria-hidden="true"></span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          {{ t.search_btn }}
+        </button>
       </div>
     </div>
 
-    {% for oj_name in available_ojs %}
-    <div class="form-check form-check-inline">
-      <input class="form-check-input oj-checkbox" type="checkbox" name="oj" value="{{ oj_name }}"
-        id="oj-{{ loop.index }}"
-        {% if oj_name in selected_ojs %}checked{% endif %}>
-      <label class="form-check-label" for="oj-{{ loop.index }}">{{ oj_name }}</label>
+    <div class="oj-filter">
+      <div class="oj-head">
+        <span class="label">{{ t.filter_by_oj }}</span>
+        <span id="oj-count" class="muted"></span>
+        <button type="button" class="link-btn" id="oj-all">{{ t.select_all }}</button>
+        <button type="button" class="link-btn" id="oj-none">{{ t.deselect_all }}</button>
+      </div>
+      <div class="chips">
+        {% for oj_name in available_ojs %}
+        <label class="chip" for="oj-{{ loop.index }}">
+          <input class="oj-checkbox" type="checkbox" name="oj" value="{{ oj_name }}" id="oj-{{ loop.index }}"
+                 {% if oj_name in selected_ojs %}checked{% endif %}>
+          <span>{{ oj_name }}</span>
+        </label>
+        {% endfor %}
+      </div>
     </div>
-    {% endfor %}
-  </div>
+  </form>
 
-  
-  <button class="btn btn-primary">{{ t.search_btn }}</button>
-  <a class="btn btn-link btn-sm ms-2" href="{{ url_for('stats', lang=lang) }}">{{ t.view_stats }}</a>
-</form>
-
-<div id="search-progress-wrapper" class="mt-3 d-none" aria-live="polite">
-  <div class="d-flex justify-content-between align-items-center mb-1">
-    <small class="text-success fw-semibold">{{ t.search_progress }}</small>
-    <small id="search-token-count" class="text-muted">{{ t.token_count_label }}: --</small>
-  </div>
-  <div class="progress" style="height: 0.75rem;">
-    <div id="search-progress-bar"
-         class="progress-bar bg-success progress-bar-striped progress-bar-animated w-100"
-         role="progressbar"
-         aria-busy="true"
-         aria-valuemin="0"
-         aria-valuemax="100">
+  <div id="search-progress-wrapper" class="progress-card is-hidden" aria-live="polite">
+    <div class="progress-head">
+      <span class="label">{{ t.search_progress }}</span>
+      <span id="search-token-count" class="muted">{{ t.token_count_label }}: --</span>
+    </div>
+    <div class="progress-track">
+      <div id="search-progress-bar" class="progress-bar" role="progressbar"
+           aria-busy="false" aria-valuemin="0" aria-valuemax="100"></div>
+    </div>
+    <div class="progress-stats">
+      <span>{{ t.elapsed_time }}: <b id="search-elapsed-seconds">0.00</b>s</span>
+      <span>{{ t.estimated_time }}: <b id="search-estimated-seconds">--</b>s</span>
     </div>
   </div>
-  <div class="small text-muted mt-2">
-    {{ t.elapsed_time }}: <span id="search-elapsed-seconds">0.00</span>s
-    | {{ t.estimated_time }}: <span id="search-estimated-seconds">--</span>s
+</section>
+
+<section id="insights" class="insights is-hidden" aria-label="{{ t.insights_title }}">
+  <div class="glass card-pad">
+    <h2 class="section-title">🧭 {{ t.clusters_title }}</h2>
+    <p class="section-sub" id="insights-hint"></p>
+    <div id="cluster-list" class="cluster-list"></div>
   </div>
-</div>
+  <div class="glass card-pad">
+    <h2 class="section-title">🗺️ {{ t.scatter_title }}</h2>
+    <p class="section-sub">{{ t.scatter_hint }}</p>
+    <div class="scatter-wrap" id="scatter-wrap">
+      <svg id="scatter" class="scatter-svg" viewBox="0 0 480 340" role="img" aria-label="{{ t.scatter_title }}"></svg>
+      <div class="tooltip" id="scatter-tip" role="tooltip"></div>
+    </div>
+  </div>
+</section>
 
 <div id="search-results">
   {% if query %}
@@ -79,295 +93,21 @@
   {% endif %}
 </div>
 
-<script>
-  const SEARCH_API_URL = "{{ url_for('api_search') }}";
-  const INDEX_URL = "{{ url_for('index') }}";
-  const TOKEN_LABEL = "{{ t.token_count_label }}";
+<script type="application/json" id="page-data">{{ {
+  "searchApi": url_for('api_search'),
+  "indexUrl": url_for('index'),
+  "etaUrl": url_for('estimate_eta'),
+  "problemUrl": url_for('problem', pid=0),
+  "lang": lang,
+  "hasQuery": (query != ""),
+  "meta": {"elapsed": elapsed, "estimated_ms": estimated_ms, "query_token_count": query_token_count},
+  "insights": insights,
+  "params": params,
+  "templates": {"zh": "求 1-n 的所有约数的和的和", "en": "Given n, output sum of all divisor sums from 1 to n"}
+} | tojson }}</script>
+{% endblock %}
 
-  let searchElapsedTimer = null;
-  let searchLoading = false;
-
-  function buildSearchParams(page) {
-    const form = document.getElementById("search-form");
-    const params = new URLSearchParams(new FormData(form));
-    params.set("page", String(page));
-    return params;
-  }
-
-  function syncBrowserUrl(params) {
-    const url = INDEX_URL + (params.toString() ? "?" + params.toString() : "");
-    history.pushState(null, "", url);
-  }
-
-  function formatSeconds(ms) {
-    if (ms === null || ms === undefined || Number.isNaN(ms)) return "--";
-    return (ms / 1000).toFixed(2);
-  }
-
-  function setSearchSubmitDisabled(disabled) {
-    const btn = document.querySelector("#search-form button[type='submit']");
-    if (btn) btn.disabled = disabled;
-  }
-
-  function showSearchLoading() {
-    const wrapper = document.getElementById("search-progress-wrapper");
-    const bar = document.getElementById("search-progress-bar");
-    const elapsedNode = document.getElementById("search-elapsed-seconds");
-    const estimatedNode = document.getElementById("search-estimated-seconds");
-    if (!wrapper || !bar || !elapsedNode || !estimatedNode) return;
-
-    wrapper.classList.remove("d-none");
-    bar.className = "progress-bar bg-success progress-bar-striped progress-bar-animated w-100";
-    bar.setAttribute("aria-busy", "true");
-    bar.removeAttribute("aria-valuenow");
-    elapsedNode.textContent = "0.00";
-    estimatedNode.textContent = "--";
-
-    const begin = Date.now();
-    if (searchElapsedTimer) clearInterval(searchElapsedTimer);
-    searchElapsedTimer = setInterval(() => {
-      elapsedNode.textContent = ((Date.now() - begin) / 1000).toFixed(2);
-    }, 100);
-  }
-
-  function finishSearchLoading(meta) {
-    const wrapper = document.getElementById("search-progress-wrapper");
-    const bar = document.getElementById("search-progress-bar");
-    const elapsedNode = document.getElementById("search-elapsed-seconds");
-    const estimatedNode = document.getElementById("search-estimated-seconds");
-    const tokenNode = document.getElementById("search-token-count");
-    if (searchElapsedTimer) {
-      clearInterval(searchElapsedTimer);
-      searchElapsedTimer = null;
-    }
-    if (!wrapper || !bar || !elapsedNode || !estimatedNode) return;
-
-    bar.className = "progress-bar bg-success w-100";
-    bar.setAttribute("aria-busy", "false");
-    bar.setAttribute("aria-valuenow", "100");
-
-    if (meta) {
-      elapsedNode.textContent = formatSeconds(meta.elapsed);
-      estimatedNode.textContent = formatSeconds(meta.estimated_ms);
-      if (tokenNode && meta.query_token_count !== undefined) {
-        tokenNode.textContent = TOKEN_LABEL + ": " + meta.query_token_count;
-      }
-    }
-  }
-
-  function hideSearchProgress() {
-    const wrapper = document.getElementById("search-progress-wrapper");
-    if (searchElapsedTimer) {
-      clearInterval(searchElapsedTimer);
-      searchElapsedTimer = null;
-    }
-    if (wrapper) wrapper.classList.add("d-none");
-  }
-
-  async function prefetchEta(query) {
-    try {
-      const resp = await fetch("{{ url_for('estimate_eta') }}", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ q: query }),
-      });
-      if (!resp.ok) return;
-      const data = await resp.json();
-      const tokenNode = document.getElementById("search-token-count");
-      const estimatedNode = document.getElementById("search-estimated-seconds");
-      if (tokenNode && data.token_count !== undefined) {
-        tokenNode.textContent = TOKEN_LABEL + ": " + data.token_count;
-      }
-      if (estimatedNode) {
-        estimatedNode.textContent = formatSeconds(data.estimated_ms);
-      }
-    } catch (_) {
-      /* optional hint only */
-    }
-  }
-
-  async function runSearch(page) {
-    const query = (document.getElementById("query-box").value || "").trim();
-    if (!query || searchLoading) return;
-
-    const params = buildSearchParams(page);
-    searchLoading = true;
-    setSearchSubmitDisabled(true);
-    showSearchLoading();
-    prefetchEta(query);
-
-    try {
-      const resp = await fetch(SEARCH_API_URL + "?" + params.toString(), {
-        headers: { "Accept": "application/json" },
-      });
-      if (!resp.ok) throw new Error("search failed");
-      const data = await resp.json();
-      const resultsRoot = document.getElementById("search-results");
-      if (resultsRoot) resultsRoot.innerHTML = data.html || "";
-      finishSearchLoading(data);
-      syncBrowserUrl(params);
-    } catch (_) {
-      hideSearchProgress();
-      window.location.href = INDEX_URL + "?" + params.toString();
-      return;
-    } finally {
-      searchLoading = false;
-      setSearchSubmitDisabled(false);
-    }
-  }
-
-  function fillTemplate() {
-    const lang = "{{ lang }}";
-    const template = {
-      "zh": "求 1-n 的所有约数的和的和",
-      "en": "Given n, output sum of all divisor sums from 1 to n"
-    };
-    document.getElementById("query-box").value = template[lang] || "";
-  }
-  function selectAllOJs() {
-    const checkboxes = document.querySelectorAll('.oj-checkbox');
-    checkboxes.forEach(checkbox => {
-      checkbox.checked = true;
-    });
-  }
-  function deselectAllOJs() {
-    const checkboxes = document.querySelectorAll('.oj-checkbox');
-    checkboxes.forEach(checkbox => {
-      checkbox.checked = false;
-    });
-  }
-
-  document.addEventListener("DOMContentLoaded", function () {
-    const form = document.getElementById("search-form");
-    const resultsRoot = document.getElementById("search-results");
-
-    if (form) {
-      form.addEventListener("submit", function (e) {
-        e.preventDefault();
-        runSearch(1);
-      });
-    }
-
-    if (resultsRoot) {
-      resultsRoot.addEventListener("click", function (e) {
-        const link = e.target.closest("a.page-link[data-page]");
-        if (!link) return;
-        const item = link.closest(".page-item");
-        if (item && item.classList.contains("disabled")) return;
-        e.preventDefault();
-        const page = parseInt(link.dataset.page, 10);
-        if (!Number.isFinite(page) || page < 1) return;
-        runSearch(page);
-      });
-    }
-
-    {% if query %}
-    finishSearchLoading({
-      elapsed: {{ elapsed }},
-      estimated_ms: {{ estimated_ms if estimated_ms is not none else "null" }},
-      query_token_count: {{ query_token_count }},
-    });
-    document.getElementById("search-progress-wrapper")?.classList.remove("d-none");
-    {% endif %}
-  });
-</script>
-
-<div class="text-center text-muted small">
-  <a href="https://github.com/coldchair/CPRet" target="_blank" class="text-decoration-none">
-    
-    <svg height="16" width="16" viewBox="0 0 16 16" fill="currentColor"
-         xmlns="http://www.w3.org/2000/svg" class="me-1" style="vertical-align: text-bottom;">
-      <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 
-        6.53 5.47 7.59.4.07.55-.17.55-.38 
-        0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 
-        1.08.58 1.23.82.72 1.21 1.87.87 
-        2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 
-        0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 
-        0 0 .67-.21 2.2.82a7.65 7.65 0 0 1 2-.27c.68 0 1.36.09 2 
-        .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 
-        1.92.08 2.12.51.56.82 1.27.82 
-        2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 
-        1.48 0 1.07-.01 1.93-.01 2.2 
-        0 .21.15.46.55.38A8.013 8.013 0 0 0 16 
-        8c0-4.42-3.58-8-8-8z"/>
-    </svg>
-    
-    <span>GitHub: <strong>coldchair/CPRet</strong></span>
-    
-    <span id="github-stars-container" class="ms-2"></span>
-      
-  </a>
-</div>
-<script>
-  // 等待整个 HTML 文档加载完成后再执行脚本
-  document.addEventListener('DOMContentLoaded', function() {
-  
-      const GITHUB_REPO = 'coldchair/CPRet';
-      const CACHE_DURATION_HOURS = 6; // 缓存 6 小时
-      const CACHE_KEY = 'github_stars_data';
-      const starsContainer = document.getElementById('github-stars-container');
-  
-      if (!starsContainer) {
-          return; // 如果页面上没有占位符，则不执行
-      }
-  
-      // 更新 DOM，显示星星
-      function displayStars(count) {
-          if (count !== null && count !== undefined) {
-              starsContainer.innerHTML = `
-                  <span title="GitHub Stars">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-star-fill" viewBox="0 0 16 16" style="vertical-align: -0.125em;">
-                          <path d="M3.612 15.443c-.386.198-.824-.149-.746-.592l.83-4.73L.173 6.765c-.329-.314-.158-.888.283-.95l4.898-.696L7.538.792c.197-.39.73-.39.927 0l2.184 4.327 4.898.696c.441.062.612.636.282.95l-3.522 3.356.83 4.73c.078.443-.36.79-.746.592L8 13.187l-4.389 2.256z"/>
-                      </svg>
-                      ${count}
-                  </span>
-              `;
-          }
-      }
-      
-      // --- 缓存逻辑 ---
-      const cachedData = localStorage.getItem(CACHE_KEY);
-      if (cachedData) {
-          const { stars, timestamp } = JSON.parse(cachedData);
-          const ageInHours = (Date.now() - timestamp) / (1000 * 60 * 60);
-  
-          if (ageInHours < CACHE_DURATION_HOURS) {
-              console.log('GitHub stars loaded from cache.');
-              displayStars(stars);
-              return; // 缓存有效，直接使用并停止执行
-          }
-      }
-  
-      // --- API 请求逻辑 ---
-      console.log('Fetching fresh GitHub stars...');
-      fetch(`https://api.github.com/repos/${GITHUB_REPO}`)
-          .then(response => {
-              if (!response.ok) {
-                  throw new Error('Network response was not ok');
-              }
-              return response.json();
-          })
-          .then(data => {
-              const stars = data.stargazers_count;
-              displayStars(stars);
-              
-              // 将新数据存入缓存
-              const newData = {
-                  stars: stars,
-                  timestamp: Date.now()
-              };
-              localStorage.setItem(CACHE_KEY, JSON.stringify(newData));
-          })
-          .catch(error => {
-              console.error('Failed to fetch GitHub stars:', error);
-              // 请求失败时，如果缓存中有旧数据，也可以选择显示旧数据
-              if(cachedData) {
-                  const { stars } = JSON.parse(cachedData);
-                  displayStars(stars); // 显示过期的旧数据
-              }
-          });
-  });
-  </script>
-
-
+{% block scripts %}
+<script src="{{ static_v('js/insights.js') }}" defer></script>
+<script src="{{ static_v('js/search.js') }}" defer></script>
 {% endblock %}

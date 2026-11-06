@@ -1,27 +1,77 @@
-{% if results %}
-<hr>
-<p class="text-muted">{{ t.summary.format(total=total, page=page, max_page=max_page, elapsed=elapsed) | safe }}</p>
+{% if query %}
+<div class="results-toolbar glass">
+  <p class="summary">
+    {{ t.summary.format(total=total, page=page, max_page=max_page, elapsed=elapsed) | safe }}
+    {% if insights and insights.dup_groups %}<span class="muted"> · {{ t.dup_groups.format(n=insights.dup_groups) }}</span>{% endif %}
+  </p>
+  <div class="toggles">
+    <label class="switch" title="{{ t.mmr_tip }}">
+      <input type="checkbox" data-toggle="mmr" {% if params.mmr %}checked{% endif %}>
+      <span class="switch-track"></span>
+      <span>{{ t.mmr_label }}</span>
+    </label>
+    <label class="switch" title="{{ t.dedup_tip }}">
+      <input type="checkbox" data-toggle="dedup" {% if params.dedup %}checked{% endif %}>
+      <span class="switch-track"></span>
+      <span>{{ t.dedup_label }}</span>
+    </label>
+  </div>
+</div>
 
-<ul class="list-group">
+{% if params.cluster is not none and insights.clusters|length > params.cluster %}
+{% set cl = insights.clusters[params.cluster] %}
+<div class="filter-pill" style="--cc: var(--cl-{{ params.cluster % 8 }})">
+  <span class="cdot"></span>
+  <span>{{ t.cluster_filter_active }}:</span>
+  <span class="label-text">{{ cl.label }}</span>
+  <button type="button" class="link-btn" data-clear-cluster>✕ {{ t.clear_filter }}</button>
+</div>
+{% endif %}
+
+{% if results %}
+<ol class="result-list">
   {% for r in results %}
-  <li class="list-group-item">
-    <div class="d-flex justify-content-between">
-      <div>
-        <span class="badge bg-secondary me-2">#{{ r.rank }}</span>
-        <a href="{{ r.url }}" target="_blank">{{ r.title }}</a>
-        <a href="{{ url_for('problem', pid=r.pid, lang=lang, q=query, page=page) }}"
-           class="ms-2 text-decoration-none" title="查看题面">📄</a>
-        <small class="text-muted ms-2">{{ r.source }}</small>
+  <li class="result-card" style="--i: {{ loop.index0 }}">
+    <span class="rank{% if params.cluster is none %}{% if r.rank <= 4 %} medal-gold{% elif r.rank <= 8 %} medal-silver{% elif r.rank <= 12 %} medal-bronze{% endif %}{% endif %}">#{{ r.rank }}</span>
+    <div class="result-main">
+      <div class="result-title-row">
+        {% if r.cluster is not none %}
+        <span class="cdot" style="--cc: var(--cl-{{ r.cluster % 8 }})" title="{{ insights.clusters[r.cluster].label if insights.clusters|length > r.cluster else '' }}"></span>
+        {% endif %}
+        <a class="result-title" href="{{ r.url | safe_url }}" target="_blank" rel="noopener noreferrer">{{ r.title }}</a>
       </div>
-      <span class="score-badge text-muted">{{ "%.4f"|format(r.score) }}</span>
+      <div class="result-meta">
+        <span class="oj-tag">{{ r.source }}</span>
+        <a class="meta-link" href="{{ url_for('problem', pid=r.pid, lang=lang, q=query, page=page, oj=oj_link) }}" title="{{ t.view_problem }}">📄 {{ t.view_problem }}</a>
+        {% if r.orig_rank != r.rank %}<span>{{ t.orig_rank }} #{{ r.orig_rank }}</span>{% endif %}
+        {% if r.duplicates %}
+        <details class="dups">
+          <summary>{{ t.see_also.format(n=r.duplicates|length) }}</summary>
+          <ul>
+            {% for d in r.duplicates %}
+            <li>
+              <span class="oj-tag">{{ d.source }}</span>
+              <a class="t" href="{{ d.url | safe_url }}" target="_blank" rel="noopener noreferrer">{{ d.title }}</a>
+              <a class="meta-link" href="{{ url_for('problem', pid=d.pid, lang=lang, q=query, page=page, oj=oj_link) }}" title="{{ t.view_problem }}">📄</a>
+              <span class="num">{{ "%.4f"|format(d.score) }}</span>
+            </li>
+            {% endfor %}
+          </ul>
+        </details>
+        {% endif %}
+      </div>
+    </div>
+    <div class="score-col" title="cosine similarity">
+      <span class="score-num">{{ "%.4f"|format(r.score) }}</span>
+      <span class="score-bar"><span style="width: {{ '%.1f'|format(([[r.score, 0]|max, 1]|min) * 100) }}%"></span></span>
     </div>
   </li>
   {% endfor %}
-</ul>
+</ol>
 
-<nav class="mt-4">
+<nav class="pager" aria-label="pagination">
   {% if max_page > 1 %}
-  <ul class="pagination justify-content-center">
+  <ul class="pagination">
     <li class="page-item {% if page==1 %}disabled{% endif %}">
       <a class="page-link" href="#" data-page="{{ page - 1 }}">&laquo; {{ t.prev }}</a>
     </li>
@@ -45,4 +95,7 @@
   </ul>
   {% endif %}
 </nav>
+{% else %}
+<div class="empty-state glass">🔍 {{ t.no_data if t.no_data else '' }}</div>
+{% endif %}
 {% endif %}
