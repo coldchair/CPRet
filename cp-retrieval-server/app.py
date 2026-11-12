@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import math
 import os
+import secrets
 import tempfile
 import threading
 import time
@@ -11,10 +12,14 @@ from functools import lru_cache
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
-from flask import Flask, jsonify, render_template, request, url_for
+from flask import Flask, g, jsonify, render_template, request, session, url_for
 from markupsafe import Markup, escape
+from werkzeug.datastructures import MultiDict
 
-import insights as insights_mod
+from retrieval.example_queries import EXAMPLE_QUERIES
+from retrieval.search_context import SearchContextStore
+
+import retrieval.insights as insights_mod
 
 # ===== Multilingual dictionary =====
 I18N = {
@@ -26,8 +31,15 @@ I18N = {
         "paper_info": "📰 2025 年 9 月更新：🎉 恭喜！我们的项目论文 <a href='https://neurips.cc/virtual/2025/poster/121814' target='_blank'>CPRet</a> 被 NeurIPS 2025 D&B track 接收！",
         "info": "📢 2025 年 7 月更新：我们已升级模型并同步更新了题目数据库，检索效果更佳！",
         "info2": "📢 2026 年 11 月更新：已更新题目库。",
-        "placeholder": "输入题目描述或简略题意（超过 2048 token 的查询将被截断）…",
-        "template_btn": "填入示例查询",
+        "placeholder": "输入题目描述或简略题意（超过 {max_tokens} token 的查询将被截断）…",
+        "template_btn": "示例查询",
+        "example_idea": "思路",
+        "example_short": "简化题意",
+        "example_full": "完整题意",
+        "example_select": "选择示例题目",
+        "level_easy": "简单",
+        "level_medium": "中等",
+        "level_hard": "困难",
         "search_btn": "搜索",
         "summary"   : "共 <strong>{total}</strong> 条结果，页 {page}/{max_page}，耗时 {elapsed:.1f} ms",
         "prev"      : "上一页",
@@ -87,8 +99,15 @@ I18N = {
         "paper_info": "📰 September 2025 Update: 🎉 Congrats! Our project paper <a href='https://neurips.cc/virtual/2025/poster/121814' target='_blank'>CPRet</a> has been accepted by the NeurIPS 2025 D&B track!",
         "info": "📢 July 2025 Update: We've upgraded our model and synchronized the problem database for better retrieval!",
         "info2": "📢 November 2026 Update: Problem database refreshed.",
-        "placeholder": "Enter problem description or simplified statement (queries longer than 2048 tokens will be truncated)…",
-        "template_btn": "Insert example query",
+        "placeholder": "Enter problem description or simplified statement (queries longer than {max_tokens} tokens will be truncated)…",
+        "template_btn": "Examples",
+        "example_idea": "Idea",
+        "example_short": "Short statement",
+        "example_full": "Full statement",
+        "example_select": "Choose an example problem",
+        "level_easy": "Easy",
+        "level_medium": "Medium",
+        "level_hard": "Hard",
         "search_btn": "Search",
         "summary"   : "<strong>{total}</strong> results, page {page}/{max_page}, {elapsed:.1f} ms",
         "prev"      : "Prev",
@@ -153,7 +172,7 @@ JS_I18N_KEYS = (
 
 def detect_lang():
     """Language priority: ?lang= -> Accept-Language -> zh"""
-    qlang = request.args.get("lang")
+    qlang = g.search_args.get("lang") if "search_args" in g else request.args.get("lang")
     if qlang in ("zh", "en"):
         return qlang
     header = request.headers.get("Accept-Language", "")
@@ -181,15 +200,21 @@ _APP_DIR = os.path.dirname(os.path.abspath(__file__))
 MOCK_MODEL = env_flag("MOCK_MODEL", default=False)
 _STATS_SUFFIX = ".mock" if MOCK_MODEL else ""
 SEARCH_STATS_PATH = os.path.join(_APP_DIR, "search_stats.json" + _STATS_SUFFIX)
-SEARCH_TIME_STATS_PATH = os.path.join(_APP_DIR, "search_time_stats.json" + _STATS_SUFFIX)
 MODEL_PATH = os.getenv("MODEL_PATH", "coldchair16/CPRetriever-Prob-Qwen3-4B-2510")
+ENCODER_BACKEND = os.getenv("ENCODER_BACKEND", "sentence_transformers").strip().lower()
+_TIMING_SUFFIX = _STATS_SUFFIX or (".vllm" if ENCODER_BACKEND == "vllm" else "")
+SEARCH_TIME_STATS_PATH = os.path.join(_APP_DIR, "search_time_stats.json" + _TIMING_SUFFIX)
 EMB_PATH = os.getenv("EMB_PATH", "./probs_2611_embs.npy")
 PROB_PATH = os.getenv("PROB_PATH", "./probs_2611.jsonl")
 # Memory-map embeddings instead of loading a normalised copy (saves RAM).
 EMB_MMAP = env_flag("EMB_MMAP", default=MOCK_MODEL)
 
 PAGE_SIZE = 20
-MAX_QUERY_TOKENS = 2048
+MAX_QUERY_TOKENS = int(env_number("MAX_QUERY_TOKENS", 2048, 2048, 8192, int))
+ENGINE_MAX_QUERY_TOKENS = int(env_number("ENGINE_MAX_QUERY_TOKENS", 8192, MAX_QUERY_TOKENS, 8192, int))
+LOCAL_ADMIN_ENABLED = env_flag("LOCAL_ADMIN", default=False)
+LOCAL_ADMIN_SOCKET = os.getenv("LOCAL_ADMIN_SOCKET", os.path.join(_APP_DIR, ".runtime", "admin.sock"))
+DATA_UPDATE_ROOT = os.getenv("DATA_UPDATE_ROOT", os.path.join(_APP_DIR, "updates"))
 SEARCH_CACHE_SIZE = int(env_number("SEARCH_CACHE_SIZE", 1024, 1, 100000, int))
 INSIGHT_CACHE_SIZE = 256
 MAX_TIMING_SAMPLES = 5000
@@ -283,56 +308,167 @@ def init_search_stats_memory() -> None:
 
 
 app = Flask(__name__)
+app.config["MAX_CONTENT_LENGTH"] = 1024 * 1024
+app.secret_key = os.getenv("FLASK_SECRET_KEY") or secrets.token_hex(32)
+app.config.update(SESSION_COOKIE_HTTPONLY=True, SESSION_COOKIE_SAMESITE="Lax")
+_search_contexts = SearchContextStore()
+
+
+from encoder.async_pooler import EncoderBusyError, EncoderTimeoutError
+
+
+@app.errorhandler(EncoderBusyError)
+def encoder_busy(error):
+    return jsonify({"error": "encoder_busy"}), 503, {"Retry-After": "1"}
+
+
+@app.errorhandler(EncoderTimeoutError)
+def encoder_timeout(error):
+    return jsonify({"error": "encoder_timeout"}), 504
+
+
+def query_owner() -> str:
+    if "query_owner" not in session:
+        session["query_owner"] = secrets.token_urlsafe(24)
+    return session["query_owner"]
+
+
+def search_request_args() -> MultiDict:
+    if request.method != "POST":
+        return MultiDict(request.args)
+    if not request.is_json:
+        return MultiDict(request.form)
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        raise ValueError("invalid_search_payload")
+    args = MultiDict()
+    for key in ("q", "qid", "lang", "page", "mmr", "dedup", "cluster", "count", "oj"):
+        if key not in payload or payload[key] is None:
+            continue
+        values = payload[key] if key == "oj" and isinstance(payload[key], list) else [payload[key]]
+        if key == "oj" and not values:
+            args.add("oj", "")
+        if len(values) > 100:
+            raise ValueError("invalid_search_payload")
+        for value in values:
+            if not isinstance(value, (str, int, bool)) or (key in ("q", "qid", "lang", "oj") and not isinstance(value, str)):
+                raise ValueError("invalid_search_payload")
+            args.add(key, "1" if value is True else "0" if value is False else str(value))
+    return args
+
+
+def resolve_search_query(args) -> Tuple[str, Optional[str]]:
+    qid = args.get("qid")
+    if "q" in args:
+        query = args.get("q", "").strip()
+    elif qid:
+        query = _search_contexts.get(query_owner(), qid)
+        if query is None:
+            raise ValueError("search_context_expired")
+    else:
+        query = ""
+    if query:
+        qid = _search_contexts.put(query_owner(), query, qid)
+    else:
+        qid = None
+    return query, qid
 
 # ---------- Load model & data on startup ---------- #
+from retrieval.retrieval_state import ReadWriteLock, load_problem_data, model_fingerprint
+
 model = None
-if MOCK_MODEL:
-    print("[MOCK_MODEL] Skipping model loading (debug only).")
-else:
-    import torch
-    from sentence_transformers import SentenceTransformer
-
-    print("Loading SentenceTransformer model …")
-    use_bf16 = env_flag("BF_16", default=True)
-    if use_bf16:
-        model = SentenceTransformer(
-            MODEL_PATH,
-            trust_remote_code=True,
-            model_kwargs={"torch_dtype": torch.bfloat16},
-        )
-    else:
-        model = SentenceTransformer(MODEL_PATH, trust_remote_code=True)
-    model.tokenizer.model_max_length = MAX_QUERY_TOKENS
-    model.max_seq_length = MAX_QUERY_TOKENS
-
-print("Loading pre‑computed embeddings …")
+mock_encoder = None
 emb_norms: Optional[np.ndarray] = None
-if EMB_MMAP:
-    embs = np.load(EMB_PATH, mmap_mode="r")
-    if embs.dtype != np.float32:
-        print(f"EMB_MMAP: dtype {embs.dtype} is not float32, falling back to full load.")
-        embs = np.asarray(embs, dtype=np.float32)
-        embs /= np.linalg.norm(embs, axis=1, keepdims=True)
+_retrieval_lock = ReadWriteLock()
+_hot_controller = None
+_local_admin = None
+
+
+def activate_problem_data(data, query_tokens: int) -> None:
+    global embs, emb_norms, probs, available_ojs, _oj_code, source_codes, MAX_QUERY_TOKENS
+    global SEARCH_TIME_STATS_PATH
+    embs, emb_norms, probs = data.embeddings, data.norms, data.probs
+    available_ojs, _oj_code, source_codes = data.available_ojs, data.oj_code, data.source_codes
+    MAX_QUERY_TOKENS = query_tokens
+    timing_suffix = _TIMING_SUFFIX + (".8192" if query_tokens == 8192 else "")
+    SEARCH_TIME_STATS_PATH = os.path.join(_APP_DIR, "search_time_stats.json" + timing_suffix)
+    encode_query.cache_clear()
+    rank_all.cache_clear()
+    get_insights.cache_clear()
+
+
+def initialize_retriever() -> None:
+    global model, mock_encoder, _hot_controller, _retrieval_lock, _local_admin
+
+    if MOCK_MODEL and LOCAL_ADMIN_ENABLED:
+        raise ValueError("Local hot updates require a real encoder, not MOCK_MODEL")
+    print("Loading embeddings and problem metadata …")
+    data = load_problem_data(PROB_PATH, EMB_PATH, mmap=EMB_MMAP, allow_empty_text=True)
+
+    if MOCK_MODEL:
+        print("[MOCK_MODEL] Skipping model loading (debug only).")
     else:
-        _chunk = 8192
-        emb_norms = np.empty(embs.shape[0], dtype=np.float32)
-        for _s in range(0, embs.shape[0], _chunk):
-            emb_norms[_s:_s + _chunk] = np.linalg.norm(embs[_s:_s + _chunk], axis=1)
-        emb_norms = np.maximum(emb_norms, 1e-12)
-else:
-    embs = np.load(EMB_PATH).astype("float32")
-    embs /= np.linalg.norm(embs, axis=1, keepdims=True)
+        from encoder.query_encoder import create_encoder
 
-print("Loading problem metadata …")
-with open(PROB_PATH, "r", encoding="utf-8") as f:
-    probs = [json.loads(line) for line in f]
+        print(f"Loading {ENCODER_BACKEND} model …")
+        model = create_encoder(
+            MODEL_PATH,
+            backend=ENCODER_BACKEND,
+            max_seq_length=MAX_QUERY_TOKENS,
+            use_bf16=env_flag("BF_16", default=True),
+            engine_max_seq_length=ENGINE_MAX_QUERY_TOKENS,
+        )
+        if hasattr(model, "close"):
+            import atexit
 
-# 收集所有可用的 OJ 源，用于前端筛选
-available_ojs = sorted({p.get("source") for p in probs if p.get("source")})
-_oj_code = {name: i for i, name in enumerate(available_ojs)}
-source_codes = np.array([_oj_code.get(p.get("source"), -1) for p in probs], dtype=np.int32)
+            atexit.register(model.close)
 
-assert len(probs) == embs.shape[0], "Mismatch between vector and problem count!"
+    activate_problem_data(data, MAX_QUERY_TOKENS)
+    if MOCK_MODEL:
+        from encoder.mock_encoder import MockEncoder
+
+        mock_encoder = MockEncoder(probs, get_vecs)
+    if LOCAL_ADMIN_ENABLED:
+        import atexit
+        from pathlib import Path
+        from admin.hot_update import HotUpdateController
+        from admin.local_admin import LocalAdminServer
+
+        _hot_controller = HotUpdateController(
+            data, model, activate_problem_data, model_fingerprint(MODEL_PATH),
+            DATA_UPDATE_ROOT, Path(LOCAL_ADMIN_SOCKET).parent / "active.json", MAX_QUERY_TOKENS,
+        )
+        _retrieval_lock = _hot_controller.lock
+        _hot_controller.restore()
+        _local_admin = LocalAdminServer(LOCAL_ADMIN_SOCKET, _hot_controller.handle)
+        atexit.register(_local_admin.close)
+    print(f"Ready! {len(probs)} problems indexed.\n")
+    init_search_stats_memory()
+
+
+@app.before_request
+def acquire_retrieval_snapshot():
+    if request.endpoint == "estimate_eta":
+        payload = request.get_json(silent=True) or {}
+        g.eta_payload = payload if isinstance(payload, dict) else {}
+    if request.endpoint in ("api_search", "index"):
+        try:
+            g.search_args = search_request_args()
+            g.query, g.query_id = resolve_search_query(g.search_args)
+        except ValueError as error:
+            if request.endpoint == "api_search":
+                return jsonify({"error": str(error)}), 410 if str(error) == "search_context_expired" else 400
+            g.search_args = MultiDict()
+            g.query, g.query_id = "", None
+            g.query_error = str(error)
+    _retrieval_lock.acquire_read()
+    g.retrieval_read_locked = True
+
+
+@app.teardown_request
+def release_retrieval_snapshot(error=None) -> None:
+    if g.pop("retrieval_read_locked", False):
+        _retrieval_lock.release_read()
 
 
 def get_vecs(idx: np.ndarray) -> np.ndarray:
@@ -351,24 +487,13 @@ def score_all(q_emb: np.ndarray) -> np.ndarray:
     return sims
 
 
-mock_encoder = None
-if MOCK_MODEL:
-    from mock_encoder import MockEncoder
-
-    mock_encoder = MockEncoder(probs, get_vecs)
-
-print(f"Ready! {len(probs)} problems indexed.\n")
-
-init_search_stats_memory()
-
-
 @lru_cache(maxsize=SEARCH_CACHE_SIZE * 4)
 def encode_query(q: str) -> np.ndarray:
     """Encode and L2-normalise the query (float32, read-only)."""
     if mock_encoder is not None:
         q_emb = mock_encoder.encode(q)
     else:
-        q_emb = model.encode(q, convert_to_tensor=True).to(torch.float32).cpu().numpy()
+        q_emb = model.encode(q)
     q_emb = np.asarray(q_emb, dtype=np.float32)
     q_emb = q_emb / np.linalg.norm(q_emb)
     q_emb.setflags(write=False)
@@ -485,14 +610,7 @@ def get_query_token_count(q: str) -> int:
     """Get tokenizer token count (same tokenizer used by retrieval model)."""
     if mock_encoder is not None:
         return mock_encoder.count_tokens(q, MAX_QUERY_TOKENS)
-    encoded = model.tokenizer(
-        q,
-        add_special_tokens=False,
-        truncation=True,
-        max_length=model.tokenizer.model_max_length,
-    )
-    input_ids = encoded.get("input_ids", [])
-    return len(input_ids)
+    return model.count_tokens(q)
 
 
 def get_selected_ojs_from_args(args: Any) -> List[str]:
@@ -702,11 +820,13 @@ def build_results_page(
 
 
 def _common_context(lang: str) -> Dict[str, Any]:
-    t = I18N[lang]
+    t = dict(I18N[lang])
+    t["placeholder"] = t["placeholder"].format(max_tokens=MAX_QUERY_TOKENS)
     return {
         "lang": lang,
         "t": t,
         "js_i18n": {k: t[k] for k in JS_I18N_KEYS},
+        "example_queries": EXAMPLE_QUERIES[lang],
         "mock_mode": MOCK_MODEL,
     }
 
@@ -723,7 +843,11 @@ def inject_static_helpers() -> Dict[str, Any]:
 
     def lang_url(target: str) -> str:
         """Current page URL with ?lang= replaced (keeps other query args)."""
-        args = request.args.to_dict(flat=False)
+        args = (g.search_args if "search_args" in g else request.args).to_dict(flat=False)
+        args.pop("q", None)
+        args.pop("count", None)
+        if g.get("query_id"):
+            args["qid"] = [g.query_id]
         args["lang"] = [target]
         endpoint = request.endpoint or "index"
         try:
@@ -748,6 +872,8 @@ def _template_args(q: str, page: int, selected_ojs: List[str], payload: Dict[str
     all_selected = len(selected_ojs) == len(available_ojs)
     return {
         "query": q,
+        "query_id": g.get("query_id"),
+        "query_error": g.get("query_error"),
         "page": page,
         "page_size": PAGE_SIZE,
         "selected_ojs": selected_ojs,
@@ -757,16 +883,17 @@ def _template_args(q: str, page: int, selected_ojs: List[str], payload: Dict[str
     }
 
 
-@app.route("/", methods=["GET"])
+@app.route("/", methods=["GET", "POST"])
 def index() -> str:
     lang = detect_lang()
     t = I18N[lang]
 
-    q = request.args.get("q", "").strip()
-    page = parse_page(request.args.get("page", "1"))
-    selected_ojs = get_selected_ojs_from_args(request.args)
-    view = parse_view_params(request.args)
-    count = parse_bool(request.args.get("count"), True)
+    args = g.search_args
+    q = g.query
+    page = parse_page(args.get("page", "1"))
+    selected_ojs = get_selected_ojs_from_args(args)
+    view = parse_view_params(args)
+    count = parse_bool(args.get("count"), "q" in args)
 
     payload = execute_search(q, page, selected_ojs, t["untitled"], view, count)
 
@@ -777,20 +904,21 @@ def index() -> str:
     )
 
 
-@app.route("/api/search", methods=["GET"])
+@app.route("/api/search", methods=["GET", "POST"])
 def api_search():
-    """JSON API for in-page search (avoids full reload; progress UI stays alive)."""
+    """JSON API accepting body-based long queries and legacy GET requests."""
     lang = detect_lang()
     t = I18N[lang]
 
-    q = request.args.get("q", "").strip()
+    args = g.search_args
+    q = g.query
     if not q:
         return jsonify({"error": "empty_query"}), 400
 
-    page = parse_page(request.args.get("page", "1"))
-    selected_ojs = get_selected_ojs_from_args(request.args)
-    view = parse_view_params(request.args)
-    count = parse_bool(request.args.get("count"), True)
+    page = parse_page(args.get("page", "1"))
+    selected_ojs = get_selected_ojs_from_args(args)
+    view = parse_view_params(args)
+    count = parse_bool(args.get("count"), "q" in args)
     payload = execute_search(q, page, selected_ojs, t["untitled"], view, count)
 
     html = render_template(
@@ -801,6 +929,7 @@ def api_search():
     return jsonify(
         {
             "html": html,
+            "query_id": g.query_id,
             "elapsed": payload["elapsed"],
             "query_token_count": payload["query_token_count"],
             "estimated_ms": payload["estimated_ms"],
@@ -816,7 +945,7 @@ def api_search():
 @app.route("/estimate_eta", methods=["POST"])
 def estimate_eta():
     """Return exact tokenizer token count and ETA for an input query."""
-    payload = request.get_json(silent=True) or {}
+    payload = g.eta_payload
     q = str(payload.get("q", "")).strip()
     if not q:
         return jsonify({"token_count": 0, "estimated_ms": None})
@@ -857,9 +986,10 @@ def problem(pid: int):
         source=p.get("source", ""),
         url=p.get("url", "#"),
         text_html=text_html,
-        query=request.args.get("q", ""),
+        query_id=request.args.get("qid"),
         page=parse_page(request.args.get("page", "1")),
         oj_link=oj_list,
+        params=parse_view_params(request.args),
     )
 
 
@@ -896,6 +1026,9 @@ def stats():
 
 
 # -------------- Local run entry -------------- #
+if __name__ != "__mp_main__":
+    initialize_retriever()
+
 if __name__ == "__main__":
     # export FLASK_ENV=development to enable auto-reload/debug
     app.run(host=HOST, port=PORT, debug=False)

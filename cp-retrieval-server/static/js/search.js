@@ -20,8 +20,8 @@
 
   var searchElapsedTimer = null;
   var searchLoading = false;
-  var searchSeq = 0;
-  var activeCtrl = null;
+  var queryId = PAGE.queryId || null;
+  var committedParams = null;
 
   // ---------- helpers ----------
   function ojBoxes() { return Array.prototype.slice.call(document.querySelectorAll(".oj-checkbox")); }
@@ -35,11 +35,17 @@
       if (k === "oj" && allChecked) return; // server default = all OJs
       params.append(k, v);
     });
+    if (boxes.length && !boxes.some(function (b) { return b.checked; })) params.set("oj", "");
     params.set("page", String(page));
     return params;
   }
 
   function syncBrowserUrl(params, push) {
+    params = new URLSearchParams(params);
+    params.delete("q");
+    params.delete("count");
+    if (queryId) params.set("qid", queryId);
+    else params.delete("qid");
     var url = PAGE.indexUrl + (params.toString() ? "?" + params.toString() : "");
     if (push) history.pushState({ cpret: 1 }, "", url);
     else history.replaceState({ cpret: 1 }, "", url);
@@ -132,10 +138,11 @@
   // ---------- insights bridge ----------
   function problemLink(pid) {
     var base = String(PAGE.problemUrl || "/p/0").replace(/0$/, String(pid));
-    var p = new URLSearchParams();
+    var p = new URLSearchParams(committedParams || "");
+    p.delete("q");
+    p.delete("count");
     p.set("lang", PAGE.lang || "zh");
-    var q = (box.value || "").trim();
-    if (q) p.set("q", q);
+    if (queryId) p.set("qid", queryId);
     return base + "?" + p.toString();
   }
 
@@ -168,28 +175,54 @@
     var params = buildSearchParams(page);
     var reqParams = new URLSearchParams(params);
     if (!count) reqParams.set("count", "0");
+    if (queryId) reqParams.set("qid", queryId);
+    var body = {};
+    reqParams.forEach(function (value, key) {
+      if (key === "oj") {
+        if (!body.oj) body.oj = [];
+        body.oj.push(value);
+      } else body[key] = value;
+    });
+    var errorNode = $("search-error");
+    if (errorNode) errorNode.classList.add("is-hidden");
 
     searchLoading = true;
     setSearchSubmitDisabled(true);
     showSearchLoading();
     if (count) prefetchEta(query);
 
-    fetch(PAGE.searchApi + "?" + reqParams.toString(), { headers: { "Accept": "application/json" } })
+    fetch(PAGE.searchApi, {
+      method: "POST",
+      headers: { "Accept": "application/json", "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    })
       .then(function (resp) {
-        if (!resp.ok) throw new Error("search failed");
+        if (!resp.ok) throw new Error(String(resp.status));
         return resp.json();
       })
       .then(function (data) {
         if (resultsRoot) resultsRoot.innerHTML = data.html || "";
+        queryId = data.query_id;
         applyParams(data.params);
+        params.set("mmr", data.params.mmr ? "1" : "0");
+        params.set("dedup", data.params.dedup ? "1" : "0");
+        if (data.params.cluster === null) params.delete("cluster");
+        else params.set("cluster", String(data.params.cluster));
+        params.delete("q");
+        committedParams = new URLSearchParams(params);
         renderInsights(data.insights, data.params);
         finishSearchLoading(data);
-        syncBrowserUrl(buildSearchParams(page), push);
+        syncBrowserUrl(committedParams, push);
         if (opts.scroll && resultsRoot) resultsRoot.scrollIntoView({ behavior: "smooth", block: "start" });
       })
-      .catch(function () {
+      .catch(function (error) {
         hideSearchProgress();
-        window.location.href = PAGE.indexUrl + "?" + params.toString();
+        if (errorNode) {
+          errorNode.textContent = PAGE.lang === "en"
+            ? (error.message === "413" ? "Query is too large. Please shorten it." : "Search failed. Your query is preserved; please retry.")
+            : (error.message === "413" ? "查询过大，请缩短后重试。" : "搜索失败，查询已保留，请重试。");
+          errorNode.classList.remove("is-hidden");
+        }
       })
       .finally(function () {
         searchLoading = false;
@@ -229,13 +262,17 @@
     });
   }
 
-  var tplBtn = $("fill-template");
-  if (tplBtn) {
-    tplBtn.addEventListener("click", function () {
-      box.value = (PAGE.templates || {})[PAGE.lang] || "";
+  var exampleSelect = $("example-select");
+  document.querySelectorAll("[data-example]").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var examples = PAGE.templates || [];
+      var ex = examples[exampleSelect ? Number(exampleSelect.value) : 0] || {};
+      box.value = ex[btn.getAttribute("data-example")] || "";
       box.focus();
+      box.setSelectionRange(0, 0);
+      box.scrollTop = 0;
     });
-  }
+  });
   var allBtn = $("oj-all"), noneBtn = $("oj-none");
   if (allBtn) allBtn.addEventListener("click", function () { setAllOJs(true); });
   if (noneBtn) noneBtn.addEventListener("click", function () { setAllOJs(false); });
@@ -280,6 +317,9 @@
 
   // ---------- SSR initial state ----------
   if (PAGE.hasQuery) {
+    committedParams = buildSearchParams(PAGE.page || 1);
+    committedParams.delete("q");
+    syncBrowserUrl(committedParams, false);
     finishSearchLoading(PAGE.meta);
     var wrapper = $("search-progress-wrapper");
     if (wrapper) wrapper.classList.remove("is-hidden");

@@ -218,6 +218,14 @@ button, input, textarea, select { font: inherit; color: inherit; }
 .query-input::placeholder { color: var(--text-3); }
 .query-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 8px 10px 10px 12px; border-top: 1px solid var(--border); }
 .spacer { flex: 1; }
+.example-group { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.example-label { font-size: 13px; font-weight: 600; color: var(--text-2); }
+.example-select {
+  height: 30px; max-width: 220px; padding: 0 8px; font: inherit; font-size: 13px;
+  color: var(--text); background: var(--bg-elev);
+  border: 1px solid var(--border-strong); border-radius: 8px; cursor: pointer;
+}
+.example-select:hover, .example-select:focus { border-color: var(--navy); outline: none; }
 .kbd-hint { font-size: 12px; color: var(--text-3); }
 kbd { font-family: var(--mono); font-size: 11px; padding: 1px 6px; border-radius: 4px; border: 1px solid var(--border-strong); border-bottom-width: 2px; background: var(--bg-sunk); }
 

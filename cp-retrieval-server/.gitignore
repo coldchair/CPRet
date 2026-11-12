@@ -1,0 +1,20 @@
+# Local development: tests, benchmarks/evaluation, local query logging
+tests/
+benchmarks/
+local/
+query_logs/
+
+# Runtime state, reports and caches
+.runtime/
+.benchmark/
+.playwright-cli/
+.cache/
+__pycache__/
+search_stats.json*
+search_time_stats.json*
+
+# Data and models
+updates/
+CPRetriever-*/
+*.npy
+*.jsonl

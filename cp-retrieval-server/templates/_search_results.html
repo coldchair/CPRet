@@ -42,7 +42,7 @@
       </div>
       <div class="result-meta">
         <span class="oj-tag">{{ r.source }}</span>
-        <a class="meta-link" href="{{ url_for('problem', pid=r.pid, lang=lang, q=query, page=page, oj=oj_link) }}" title="{{ t.view_problem }}">📄 {{ t.view_problem }}</a>
+        <a class="meta-link" href="{{ url_for('problem', pid=r.pid, lang=lang, qid=query_id, page=page, oj=oj_link, mmr=('1' if params.mmr else '0'), dedup=('1' if params.dedup else '0'), cluster=params.cluster) }}" title="{{ t.view_problem }}">📄 {{ t.view_problem }}</a>
         {% if r.orig_rank != r.rank %}<span>{{ t.orig_rank }} #{{ r.orig_rank }}</span>{% endif %}
         {% if r.duplicates %}
         <details class="dups">
@@ -52,7 +52,7 @@
             <li>
               <span class="oj-tag">{{ d.source }}</span>
               <a class="t" href="{{ d.url | safe_url }}" target="_blank" rel="noopener noreferrer">{{ d.title }}</a>
-              <a class="meta-link" href="{{ url_for('problem', pid=d.pid, lang=lang, q=query, page=page, oj=oj_link) }}" title="{{ t.view_problem }}">📄</a>
+              <a class="meta-link" href="{{ url_for('problem', pid=d.pid, lang=lang, qid=query_id, page=page, oj=oj_link, mmr=('1' if params.mmr else '0'), dedup=('1' if params.dedup else '0'), cluster=params.cluster) }}" title="{{ t.view_problem }}">📄</a>
               <span class="num">{{ "%.4f"|format(d.score) }}</span>
             </li>
             {% endfor %}

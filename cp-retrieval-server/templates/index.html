@@ -13,7 +13,7 @@
     <div class="notice notice-ok" role="note">{{ t.new_domain_info | safe }}</div>
   </div>
 
-  <form id="search-form" method="get" action="{{ url_for('index') }}">
+  <form id="search-form" method="post" action="{{ url_for('index') }}">
     <input type="hidden" name="lang" value="{{ lang }}">
     <input type="hidden" name="mmr" id="param-mmr" value="{{ '1' if params.mmr else '' }}">
     <input type="hidden" name="dedup" id="param-dedup" value="{{ '' if params.dedup else '0' }}">
@@ -23,7 +23,17 @@
       <textarea id="query-box" name="q" class="query-input" rows="7"
                 placeholder="{{ t.placeholder }}">{{ query }}</textarea>
       <div class="query-actions">
-        <button type="button" class="btn btn-ghost btn-sm" id="fill-template">💡 {{ t.template_btn }}</button>
+        <span class="example-group" role="group" aria-label="{{ t.template_btn }}">
+          <label class="example-label" for="example-select">💡 {{ t.template_btn }}</label>
+          <select id="example-select" class="example-select" title="{{ t.example_select }}">
+            {% for ex in example_queries %}
+            <option value="{{ loop.index0 }}" title="{{ ex.title }}">{{ loop.index }} · {{ t['level_' ~ ex.level] }} · {{ ex.topic }}</option>
+            {% endfor %}
+          </select>
+          <button type="button" class="btn btn-ghost btn-sm" data-example="idea">{{ t.example_idea }}</button>
+          <button type="button" class="btn btn-ghost btn-sm" data-example="short">{{ t.example_short }}</button>
+          <button type="button" class="btn btn-ghost btn-sm" data-example="full">{{ t.example_full }}</button>
+        </span>
         <a class="btn btn-text btn-sm" href="https://github.com/coldchair/CPRet/blob/main/TestCases.md"
            target="_blank" rel="noopener noreferrer">🧪 {{ t.example_report }}</a>
         <span class="spacer"></span>
@@ -54,6 +64,8 @@
       </div>
     </div>
   </form>
+
+  <div id="search-error" class="notice notice-warn{% if not query_error %} is-hidden{% endif %}" role="alert">{% if query_error %}{{ '搜索上下文已过期或不可用，请重新输入查询。' if lang == 'zh' else 'Search context expired or is unavailable. Please enter the query again.' }}{% endif %}</div>
 
   <div id="search-progress-wrapper" class="progress-card is-hidden" aria-live="polite">
     <div class="progress-head">
@@ -100,10 +112,12 @@
   "problemUrl": url_for('problem', pid=0),
   "lang": lang,
   "hasQuery": (query != ""),
+  "queryId": query_id,
+  "page": page,
   "meta": {"elapsed": elapsed, "estimated_ms": estimated_ms, "query_token_count": query_token_count},
   "insights": insights,
   "params": params,
-  "templates": {"zh": "求 1-n 的所有约数的和的和", "en": "Given n, output sum of all divisor sums from 1 to n"}
+  "templates": example_queries
 } | tojson }}</script>
 {% endblock %}
 

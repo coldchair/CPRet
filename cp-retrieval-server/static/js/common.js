@@ -69,6 +69,8 @@
   document.querySelectorAll(".lang-link").forEach(function (a) {
     a.addEventListener("click", function () {
       var u = new URL(window.location.href);
+      u.searchParams.delete("q");
+      u.searchParams.delete("count");
       u.searchParams.set("lang", a.getAttribute("data-lang"));
       a.setAttribute("href", u.pathname + u.search);
     });

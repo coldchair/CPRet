@@ -22,6 +22,8 @@ if __name__ == "__main__":
                         default=2048,
                         help="Maximum length of input sentences")
 
+    parser.add_argument("--manifest_path", type=str, default=None,
+                        help="Optional provenance manifest (requires a local model path)")
     args = parser.parse_args()
 
     sentences = []
@@ -58,3 +60,22 @@ if __name__ == "__main__":
     np.save(save_path, emb)
 
     print(f"Embeddings saved to {save_path}")
+    if args.manifest_path:
+        import sys
+        from pathlib import Path
+
+        sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+        from retrieval.retrieval_state import model_fingerprint, sha256_file
+
+        manifest = {
+            "schema_version": 1,
+            "model_fingerprint": model_fingerprint(model_path),
+            "max_seq_length": args.max_length,
+            "count": len(sentences),
+            "dimension": emb.shape[1],
+            "sha256": {
+                "problems.jsonl": sha256_file(Path(input_path)),
+                "embeddings.npy": sha256_file(Path(save_path)),
+            },
+        }
+        Path(args.manifest_path).write_text(json.dumps(manifest, indent=2), encoding="utf-8")

@@ -59,7 +59,7 @@ We define the following **four core retrieval tasks** to support both practical 
 
 ## 🧰 Repository Contents
 
-* `cp-retrieval-server/`: Code for running a local retrieval web service.
+* `cp-retrieval-server/`: Code for running a local retrieval web service ([README](cp-retrieval-server/README.md)).
 * `stage1/`: Code for stage-1 contrastive pretraining.
 * `stage2/`: Code for stage-2 problem-level fine-tuning.
 
@@ -101,90 +101,15 @@ export HF_ENDPOINT=https://hf-mirror.com
 
 ## 🚀 Run Local Retrieval Service
 
+See [`cp-retrieval-server/README.md`](cp-retrieval-server/README.md) for downloading embeddings, starting the service (vLLM / sentence_transformers), hot updates, the search API, dataset coverage, and system requirements.
 
-1.  **Download embeddings:**
+Quick start:
 
-    * You run `cp-retrieval-server/download.py` to download the problems and embeddings.
-
-    * **If you are using the new model, `CPRetriever-Prob-Qwen3-4B-2510`:**
-        * Please download the following files from [HF dataset CPRet-Embeddings](https://huggingface.co/datasets/coldchair16/CPRet-Embeddings) into the `cp-retrieval-server/` directory:
-            * `probs_2611.jsonl`
-            * `probs_2611_embs.npy`
-
-    * **If you are using the old model, `CPRetriever-Prob`:**
-        * Please download the following files from [HF dataset CPRet-Embeddings](https://huggingface.co/datasets/coldchair16/CPRet-Embeddings) into the `cp-retrieval-server/` directory:
-            * `probs_embs.npy`
-            * `probs.jsonl`
-
-
-
-2.  **Start the service:**
-
-    ```bash
-    cd cp-retrieval-server
-    ```
-
-    If you're using the **old model (`CPRetriever-Prob`)**, set the following environment variables before starting the service:
-
-    ```bash
-    export MODEL_PATH=coldchair16/CPRetriever-Prob
-    export EMB_PATH=./probs_embs.npy
-    export PROB_PATH=./probs.jsonl
-    ```
-
-    Note: bf16 is enabled by default. If your device does not support it, set the environment variable BF_16=0:
-
-    ```bash
-    export BF_16=0
-    ````
-
-    Then, run:
-
-    ```bash
-    python app.py
-    ```
-
-3. **About the Dataset:**
-
-   The current retrieval problem database (as of November 2026) includes problems from the following online judges:
-
-   * [Codeforces](https://codeforces.com/)
-   * [Codeforces Gym](https://codeforces.com/gyms)
-   * [AtCoder](https://atcoder.jp/)
-   * [Leetcode](https://leetcode.com/)
-   * [SPOJ](https://www.spoj.com/)
-   * [Nowcoder](https://ac.nowcoder.com/)
-   * [Luogu](https://www.luogu.com.cn/)
-   * [Loj](https://loj.ac/)
-   * [CodeChef](https://www.codechef.com/dashboard)
-   * [AIZU](https://judge.u-aizu.ac.jp/onlinejudge/)
-   * [UOJ](https://uoj.ac/)
-   * [QOJ](https://qoj.ac/)
-   * [Hydro](https://hydro.ac/)
-
-   The data is collected up to **November 2026**.
-   You can add your own data source and generate embeddings using [`compute_embs.py`](cp-retrieval-server/compute_embs.py). Running this process for the current database on a H100 GPU takes approximately 4 GPU hours.
-
-   If you have access to a larger or more diverse problem dataset, **we welcome contributions and are happy to update the collection** — feel free to contact us (2317757009@qq.com) or open an issue/pull request.
-
-
-4.  **System Requirements:**
-
-    This service can be run on **CPU** or **GPU**, depending on your environment.
-    We recommend the following memory for smooth operation:
-
-    * For the **2B old models** (e.g., `CPRetriever-Prob`): at least **16GB of system memory or GPU VRAM**.
-    * For the **4B new model** (`CPRetriever-Prob-Qwen3-4B-2510`): **32GB or more of system memory or GPU VRAM**.
-
-    The above requirements are for fp32; if the device supports bf16, only half of the memory/VRAM is needed.
-
-    Typical query latency:
-
-    * On **CPU** (8 cores): **10–20 seconds**.
-    * On **GPU** (e.g., A800): **0.1–1 seconds**.
-  
-    Inference time depends on the input length.
-
+```bash
+cd cp-retrieval-server
+python scripts/download.py
+bash run.sh start
+```
 
 ---
 

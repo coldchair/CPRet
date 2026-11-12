@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}{{ title }} · {{ t.site_short }}{% endblock %}
 {% block content %}
-<a class="crumb" href="{{ url_for('index', q=query or None, page=page if query else None, lang=lang, oj=oj_link) }}">
+<a class="crumb" href="{{ url_for('index', qid=query_id, page=page if query_id else None, lang=lang, oj=oj_link, mmr=('1' if params.mmr else '0'), dedup=('1' if params.dedup else '0'), cluster=params.cluster) }}">
   ← {{ t.back }}
 </a>
 
@@ -20,7 +20,7 @@
 </article>
 
 <div class="problem-foot">
-  <a class="btn btn-ghost" href="{{ url_for('index', q=query or None, page=page if query else None, lang=lang, oj=oj_link) }}">← {{ t.back }}</a>
+  <a class="btn btn-ghost" href="{{ url_for('index', qid=query_id, page=page if query_id else None, lang=lang, oj=oj_link, mmr=('1' if params.mmr else '0'), dedup=('1' if params.dedup else '0'), cluster=params.cluster) }}">← {{ t.back }}</a>
   <a class="btn btn-ghost" href="{{ url | safe_url }}" target="_blank" rel="noopener noreferrer">{{ t.view_origin }} 🔗</a>
 </div>
 {% endblock %}
